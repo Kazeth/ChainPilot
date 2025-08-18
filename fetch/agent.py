@@ -13,7 +13,7 @@ from uuid import uuid4
 
 # ASI1 API settings
 # Create yours at: https://asi1.ai/dashboard/api-keys
-ASI1_API_KEY = "sk_a9a67513453a42809c9929dee0babd29f2e709ba51444f8cb2fd0ed3bf114bbb" # your_asi1_api_key" # Replace with your ASI1 key
+ASI1_API_KEY = "sk_b9948a6073a34206859bdeef580e2bbac88e8775998e4a28bdf3ce731f336fdd"
 ASI1_BASE_URL = "https://api.asi1.ai/v1"
 ASI1_HEADERS = {
     "Authorization": f"Bearer {ASI1_API_KEY}",
