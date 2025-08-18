@@ -66,3 +66,17 @@ button:focus-visible {
     background-color: #f9f9f9;
   }
 }
+
+@font-face {
+  font-family: 'Sprintura';
+  src: url('./assets/fonts/Sprintura.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Creati Display';
+  src: url('./assets/fonts/CreatiDisplay.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+}
