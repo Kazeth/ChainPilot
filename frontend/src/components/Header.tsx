@@ -1,7 +1,7 @@
 // src/components/Header.tsx
 
 import React, { useState, useEffect } from 'react';
-import Button from './ui/button'; // Assuming src/components/ui/Button.tsx exists
+import Button from './ui/button'; // Assuming src/components/ui/Button.tsx existssary
 
 export default function Header() {
   // --- State for UI behavior ---
@@ -41,9 +41,9 @@ export default function Header() {
         <div className="flex items-center justify-between h-20">
           <div className="flex-shrink-0 flex items-center cursor-pointer">
              <img 
-               src="/assets/ChainPilot_logo.png" 
+               src="/ChainPilot_logo.png"
                alt="ChainPilot Logo" 
-               className="h-9 w-auto"
+               className="h-20 w-auto"
                onError={(e) => { e.currentTarget.src = 'https://placehold.co/100x36/18181b/FFFFFF?text=Logo'; e.currentTarget.onerror = null; }}
              />
              <span className="ml-3 text-2xl font-bold text-white" style={{ fontFamily: "'Sprintura', serif" }}>

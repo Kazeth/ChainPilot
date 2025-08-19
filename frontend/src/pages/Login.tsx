@@ -9,6 +9,8 @@ export default function Login() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     // TODO: Implement login logic
+    
+
     navigate("/dashboard");
   };
 

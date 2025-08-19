@@ -1,6 +1,9 @@
 // src/components/Footer.tsx
-
 import React from 'react';
+
+// Import gambar dari assets folder
+import logo from '../assets/ChainPilot_logo.png';
+
 
 // SVG Icons for social media links.
 const InstagramIcon = () => (
@@ -42,8 +45,9 @@ export default function Footer() {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 flex flex-col items-center">
         
         {/* 1. Logo */}
+        {/* Contoh penggunaan gambar yang diimpor */}
         <img 
-          src="/assets/ChainPilot_logo.png" 
+          src={logo} 
           alt="ChainPilot Logo" 
           className="h-10 w-auto mb-6"
           onError={(e) => { e.currentTarget.src = 'https://placehold.co/120x40/18181b/FFFFFF?text=Logo'; e.currentTarget.onerror = null; }}

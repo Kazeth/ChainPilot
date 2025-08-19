@@ -4,6 +4,7 @@ import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
+// import "./App.css"; // Ensure this imports your CSS including Tailwind styles
 
 function App() {
   return (
