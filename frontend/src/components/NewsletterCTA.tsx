@@ -1,7 +1,7 @@
 // src/components/NewsletterCTA.tsx
 
 import React from 'react';
-import CTA1 from '@/assets/cta1.jpg';
+import CTA1 from '@/assets/cta1.jpg'; // Assuming these images exist in the assets folder
 import CTA2 from '@/assets/cta2.jpg';
 import CTA3 from '@/assets/cta3.jpg';
 
