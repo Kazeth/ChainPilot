@@ -1,10 +1,10 @@
 // src/components/Header.tsx
 
-import React, { useState, useEffect } from 'react';
-import Logo from '@/assets/ChainPilot_logo.png';
-import Button from './ui/button'; // Assuming src/components/ui/Button.tsx exists
-import { useAuthContext } from '@/context/AuthContext';
-import { Link } from 'react-router';
+import React, { useState, useEffect } from "react";
+import Logo from "@/assets/ChainPilot_logo.png";
+import Button from "./ui/button"; // Assuming src/components/ui/Button.tsx exists
+import { useAuthContext } from "@/context/AuthContext";
+import { Link } from "react-router";
 
 export default function Header() {
   // --- State for UI behavior ---
@@ -26,15 +26,15 @@ export default function Header() {
       }
       setLastScrollY(currentScrollY);
     };
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
   }, [lastScrollY]);
 
   // Dynamic CSS classes for the header
   const headerClasses = `
     w-full fixed top-0 z-50 transition-all duration-300 ease-in-out
-    ${isVisible ? 'translate-y-0' : '-translate-y-full'}
-    ${isScrolled ? 'bg-zinc-900/80 shadow-lg backdrop-blur-sm' : 'bg-transparent'}
+    ${isVisible ? "translate-y-0" : "-translate-y-full"}
+    ${isScrolled ? "bg-zinc-900/80 shadow-lg backdrop-blur-sm" : "bg-transparent"}
   `;
 
   async function handleLogin() {
@@ -49,28 +49,43 @@ export default function Header() {
     <header className={headerClasses}>
       <nav className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
-          <div className="flex-shrink-0 flex items-center cursor-pointer">
-             <img 
-               src={Logo}
-               alt="ChainPilot Logo" 
-               className="h-20 w-auto"
-               onError={(e) => { e.currentTarget.src = 'https://placehold.co/100x36/18181b/FFFFFF?text=Logo'; e.currentTarget.onerror = null; }}
-             />
-             <span className="ml-3 text-2xl font-bold text-white" style={{ fontFamily: "'Sprintura', serif" }}>
-                ChainPilot
-             </span>
-          </div>
+          <Link
+            to="/"
+            className="flex-shrink-0 flex items-center cursor-pointer"
+          >
+            <img
+              src={Logo}
+              alt="ChainPilot Logo"
+              className="h-20 w-auto"
+              onError={(e) => {
+                e.currentTarget.src =
+                  "https://placehold.co/100x36/18181b/FFFFFF?text=Logo";
+                e.currentTarget.onerror = null;
+              }}
+            />
+            <span
+              className="ml-3 text-2xl font-bold text-white"
+              style={{ fontFamily: "'Sprintura', serif" }}
+            >
+              ChainPilot
+            </span>
+          </Link>
           <div style={{ fontFamily: "'Creati Display', sans-serif" }}>
             {/* A simple toggle to demonstrate the UI change. 
                 Replace this with your actual authentication state. */}
             {auth.isAuthenticated ? (
               <div className="flex items-center space-x-4">
                 <div className="hidden md:flex items-baseline space-x-1">
-                  <Link to="/dashboard" className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Dashboard</Link>
+                  <Link
+                    to="/dashboard"
+                    className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
+                  >
+                    Dashboard
+                  </Link>
                   {/* <Link to="/ai-analytics" className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium">AI Analytics</Link> */}
                   {/* <Link to="/portfolio" className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Portfolio</Link> */}
                 </div>
-                <Button 
+                <Button
                   onClick={handleLogout}
                   className="bg-zinc-700 border-zinc-700 hover:bg-zinc-600 hover:border-zinc-600"
                 >
@@ -78,7 +93,7 @@ export default function Header() {
                 </Button>
               </div>
             ) : (
-              <Button 
+              <Button
                 onClick={handleLogin}
                 className="bg-[#87efff] border-[#87efff] text-white-900 hover:bg-[#6fe2f6] hover:border-[#6fe2f6]"
               >

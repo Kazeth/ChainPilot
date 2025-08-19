@@ -72,15 +72,63 @@ button:focus-visible {
 }
 
 @font-face {
-  font-family: 'Sprintura';
-  src: url('./assets/fonts/Sprintura.otf') format('opentype');
+  font-family: "Sprintura";
+  src: url("./assets/fonts/Sprintura.otf") format("opentype");
   font-weight: normal;
   font-style: normal;
 }
 
 @font-face {
-  font-family: 'Creati Display';
-  src: url('./assets/fonts/CreatiDisplay.otf') format('opentype');
+  font-family: "Creati Display";
+  src: url("./assets/fonts/CreatiDisplay.otf") format("opentype");
   font-weight: normal;
   font-style: normal;
+}
+
+@font-face {
+  font-family: "Creati Display Bold";
+  src: url("./assets/fonts/CreatiDisplay-Bold.otf") format("opentype");
+  font-weight: normal;
+  font-style: normal;
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee {
+  animation: marquee 20s linear infinite;
+}
+
+@keyframes grid-move {
+  0% {
+    transform: translate(0, 0);
+  }
+  100% {
+    transform: translate(50px, 50px);
+  }
+}
+
+.animate-grid-move {
+  animation: grid-move 20s linear infinite;
+}
+
+@keyframes float-particle {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+    opacity: 0.6;
+  }
+  50% {
+    transform: translateY(-20px) rotate(180deg);
+    opacity: 1;
+  }
+}
+
+.animate-float-particle {
+  animation: float-particle 3s ease-in-out infinite;
 }
