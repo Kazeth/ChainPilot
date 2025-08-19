@@ -4,19 +4,30 @@ import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
-// import "./App.css"; // Ensure this imports your CSS including Tailwind styles
+import LoadingPage from "./pages/Loading";
+import { useAuthContext } from "./context/AuthContext";
+import NotFound from "./pages/NotFound";
 
 function App() {
+  const auth = useAuthContext()
+
+  if(auth.loginLoading){
+    return <LoadingPage />
+  }
+  
   return (
     <Router>
-      <MainLayout>
+      {/* <MainLayout> */}
         <Routes>
-          <Route path="/" element={<Landing />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
+          <Route element={<MainLayout/>}>
+            <Route path="/" element={<Landing />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+          </Route>
+          <Route path="/*" element={<NotFound />} />
         </Routes>
-      </MainLayout>
+      {/* </MainLayout> */}
     </Router>
   );
 }

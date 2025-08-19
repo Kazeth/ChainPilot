@@ -1,16 +1,17 @@
 // src/components/Header.tsx
 
 import React, { useState, useEffect } from 'react';
-import Button from './ui/button'; // Assuming src/components/ui/Button.tsx existssary
+import Logo from '@/assets/ChainPilot_logo.png';
+import Button from './ui/button'; // Assuming src/components/ui/Button.tsx exists
+import { useAuthContext } from '@/context/AuthContext';
 
 export default function Header() {
   // --- State for UI behavior ---
   const [isVisible, setIsVisible] = useState(true);
   const [isScrolled, setIsScrolled] = useState(false);
   const [lastScrollY, setLastScrollY] = useState(0);
-  
-  // This state is for demonstrating the two visual states of the header (logged in/out)
-  const [isLoggedIn, setIsLoggedIn] = useState(false); 
+
+  const auth = useAuthContext();
 
   // Effect to handle scroll events
   useEffect(() => {
@@ -35,13 +36,21 @@ export default function Header() {
     ${isScrolled ? 'bg-zinc-900/80 shadow-lg backdrop-blur-sm' : 'bg-transparent'}
   `;
 
+  async function handleLogin() {
+    await auth.login();
+  }
+
+  async function handleLogout() {
+    await auth.logout();
+  }
+
   return (
     <header className={headerClasses}>
       <nav className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
           <div className="flex-shrink-0 flex items-center cursor-pointer">
              <img 
-               src="/ChainPilot_logo.png"
+               src={Logo}
                alt="ChainPilot Logo" 
                className="h-20 w-auto"
                onError={(e) => { e.currentTarget.src = 'https://placehold.co/100x36/18181b/FFFFFF?text=Logo'; e.currentTarget.onerror = null; }}
@@ -53,7 +62,7 @@ export default function Header() {
           <div style={{ fontFamily: "'Creati Display', sans-serif" }}>
             {/* A simple toggle to demonstrate the UI change. 
                 Replace this with your actual authentication state. */}
-            {isLoggedIn ? (
+            {auth.isAuthenticated ? (
               <div className="flex items-center space-x-4">
                 <div className="hidden md:flex items-baseline space-x-1">
                   <a href="#" className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Dashboard</a>
@@ -61,7 +70,7 @@ export default function Header() {
                   <a href="#" className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Portfolio</a>
                 </div>
                 <Button 
-                  onClick={() => setIsLoggedIn(false)}
+                  onClick={handleLogout}
                   className="bg-zinc-700 border-zinc-700 hover:bg-zinc-600 hover:border-zinc-600"
                 >
                   Log Out
@@ -69,8 +78,8 @@ export default function Header() {
               </div>
             ) : (
               <Button 
-                onClick={() => setIsLoggedIn(true)}
-                className="bg-[#87efff] border-[#87efff] text-zinc-900 hover:bg-[#6fe2f6] hover:border-[#6fe2f6]"
+                onClick={handleLogin}
+                className="bg-[#87efff] border-[#87efff] text-white-900 hover:bg-[#6fe2f6] hover:border-[#6fe2f6]"
               >
                 Log In
               </Button>

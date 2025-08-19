@@ -1,22 +1,19 @@
-import React from 'react';
+
 import Header from '../components/Header';
 import NewsletterCTA from '../components/NewsletterCTA';
 import Footer from '../components/Footer';
+import { Outlet } from 'react-router-dom';
 
-// Define the props to accept 'children', which will be the page-specific content.
-interface MainLayoutProps {
-  children: React.ReactNode;
-}
 
-const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
+const MainLayout = () => {
   return (
-    <div className="bg-zinc-900 text-white min-h-screen flex flex-col">
+    <div className="bg-zinc-900 text-white min-h-screen w-screen flex flex-col">
       {/* The isLoggedIn prop has been removed from the Header */}
       <Header />
 
       {/* The main content of the page will be rendered here */}
       <main className="flex-grow pt-20">
-        {children}
+        <Outlet />
       </main>
 
       {/* Newsletter and Footer are consistently placed below the content */}

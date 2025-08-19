@@ -1,10 +1,9 @@
 // src/components/NewsletterCTA.tsx
 
 import React from 'react';
-
-import cta1 from '../assets/cta1.jpg';
-import cta2 from '../assets/cta2.jpg';
-import cta3 from '../assets/cta3.jpg';
+import CTA1 from '@/assets/cta1.jpg';
+import CTA2 from '@/assets/cta2.jpg';
+import CTA3 from '@/assets/cta3.jpg';
 
 export default function NewsletterCTA() {
   return (
@@ -42,21 +41,21 @@ export default function NewsletterCTA() {
         <div className="relative h-64 md:h-80 flex items-center justify-center">
           {/* Image 3 (Back) */}
           <img 
-            src={cta1}
+            src={CTA3}
             alt="CTA visual 3"
             className="absolute w-4/5 max-w-xs h-auto object-cover rounded-xl shadow-lg transform rotate-6 transition-transform duration-300 ease-in-out hover:scale-110 hover:-translate-y-3 hover:rotate-3"
             onError={(e) => { e.currentTarget.src = 'https://placehold.co/400x250/3f3f46/FFFFFF?text=CTA+3'; e.currentTarget.onerror = null; }}
           />
           {/* Image 2 (Middle) */}
           <img 
-            src={cta2}
+            src={CTA2}
             alt="CTA visual 2"
             className="absolute w-4/5 max-w-xs h-auto object-cover rounded-xl shadow-lg transform -rotate-4 transition-transform duration-300 ease-in-out hover:scale-110 hover:-translate-y-3 hover:rotate-0"
             onError={(e) => { e.currentTarget.src = 'https://placehold.co/400x250/52525b/FFFFFF?text=CTA+2'; e.currentTarget.onerror = null; }}
           />
           {/* Image 1 (Front) */}
           <img 
-            src={cta3} 
+            src={CTA1}
             alt="CTA visual 1"
             className="absolute w-4/5 max-w-xs h-auto object-cover rounded-xl shadow-lg transform rotate-2 transition-transform duration-300 ease-in-out hover:scale-110 hover:-translate-y-3 hover:-rotate-2"
             onError={(e) => { e.currentTarget.src = 'https://placehold.co/400x250/71717a/FFFFFF?text=CTA+1'; e.currentTarget.onerror = null; }}
