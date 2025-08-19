@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Logo from '@/assets/ChainPilot_logo.png';
 import Button from './ui/button'; // Assuming src/components/ui/Button.tsx exists
 import { useAuthContext } from '@/context/AuthContext';
+import { Link } from 'react-router';
 
 export default function Header() {
   // --- State for UI behavior ---
@@ -65,9 +66,9 @@ export default function Header() {
             {auth.isAuthenticated ? (
               <div className="flex items-center space-x-4">
                 <div className="hidden md:flex items-baseline space-x-1">
-                  <a href="#" className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Dashboard</a>
-                  <a href="#" className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium">AI Analytics</a>
-                  <a href="#" className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Portfolio</a>
+                  <Link to="/dashboard" className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Dashboard</Link>
+                  {/* <Link to="/ai-analytics" className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium">AI Analytics</Link> */}
+                  {/* <Link to="/portfolio" className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Portfolio</Link> */}
                 </div>
                 <Button 
                   onClick={handleLogout}
