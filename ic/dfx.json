@@ -1,8 +1,55 @@
 {
   "canisters": {
-    "backend": {
-      "main": "src/backend/main.mo",
-      "type": "motoko"
+    "user_backend": {
+      "main": "src/backend/User.mo",
+      "type": "motoko",
+      "declarations": {
+        "node_compatibility": true,
+        "output": "../frontend/declarations/user_backend"
+      }
+    },
+    "wallet_backend": {
+      "main": "src/backend/Wallet.mo",
+      "type": "motoko",
+      "declarations": {
+        "node_compatibility": true,
+        "output": "../frontend/declarations/wallet_backend"
+      },
+      "dependencies": [
+        "marketData_backend"
+      ]
+    },
+    "trade_backend": {
+      "main": "src/backend/Trade.mo",
+      "type": "motoko",
+      "declarations": {
+        "node_compatibility": true,
+        "output": "../frontend/declarations/trade_backend"
+      }
+    },
+    "strategy_backend": {
+      "main": "src/backend/Strategy.mo",
+      "type": "motoko",
+      "declarations": {
+        "node_compatibility": true,
+        "output": "../frontend/declarations/strategy_backend"
+      }
+    },
+    "marketData_backend": {
+      "main": "src/backend/MarketData.mo",
+      "type": "motoko",
+      "declarations": {
+        "node_compatibility": true,
+        "output": "../frontend/declarations/marketdata_backend"
+      }
+    },
+    "auditLog_backend": {
+      "main": "src/backend/AuditLog.mo",
+      "type": "motoko",
+      "declarations": {
+        "node_compatibility": true,
+        "output": "../frontend/declarations/auditlog_backend"
+      }
     }
   },
   "defaults": {
