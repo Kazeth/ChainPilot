@@ -1,62 +1,29 @@
 from uagents import Agent, Context, Protocol
 from uagents.setup import fund_agent_if_low
-from pydantic import BaseModel
 import logging
+from shared_types import (
+    SignalRequest,
+    SignalResponse,
+    PROTOCOL_NAME,
+    SIGNAL_AGENT_ADDRESS
+)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
-# Define message structures using Pydantic
-class SignalRequest(BaseModel):
-    """Request for trading signal"""
-    symbol: str  # e.g., "BTCUSDT"
-
-class SignalResponse(BaseModel):
-    """Response with comprehensive trading signal"""
-    symbol: str
-    final_signal: str  # "BUY", "SELL", "HOLD", or "ERROR"
-    confidence: float
-    
-    # Technical Analysis
-    rsi: float
-    technical_score: float
-    current_price: float
-    
-    # Sentiment Analysis
-    sentiment_score: float
-    news_count: int
-    top_headlines: list[str]
-    
-    # Whale Analysis
-    whale_score: float
-    whale_transactions: int
-    net_whale_flow: float
-    
-    # Risk Management
-    take_profit: float = 0.0
-    stop_loss: float = 0.0
-    atr: float = 0.0
-    
-    # Metadata
-    timestamp: str
-    analysis_summary: str
-
 # Create User Agent
 user_agent = Agent(
     name="user_agent",
-    port=8003,
-    endpoint=["http://localhost:8003/submit"],
+    port=8007,
+    endpoint=["http://127.0.0.1:8007/submit"],
     seed="user_agent_seed_phrase"
 )
 
 # Fund the agent if balance is low
 fund_agent_if_low(user_agent.wallet.address())
 
-# Define protocol
-user_protocol = Protocol("Signal Request v1")
-
-# Signal agent address - Update with the actual comprehensive signal agent address
-SIGNAL_AGENT_ADDRESS = "agent1qdcny99jhna95fyt9alu6snyalkm4r69pzusg6qkatz5wplsy8vuq00fr05"  # Will be updated
+# Create protocol using shared constant
+user_protocol = Protocol(PROTOCOL_NAME)
 
 # Trading pairs to request signals for
 TRADING_PAIRS = ["BTCUSDT", "ETHUSDT", "BNBUSDT"]
@@ -101,15 +68,15 @@ async def handle_signal_response(ctx: Context, sender: str, msg: SignalResponse)
     ctx.logger.info("=" * 80)
     
     # Check if it's an error response
-    if msg.final_signal == "ERROR":
+    if msg.signal == "ERROR":
         ctx.logger.error(f"❌ ERROR: Unable to fetch analysis data for {msg.symbol}")
         ctx.logger.error(f"📝 Summary: {msg.analysis_summary}")
         ctx.logger.info("=" * 80)
         return
     
     # Main Signal Information
-    signal_emoji = format_signal_emoji(msg.final_signal)
-    ctx.logger.info(f"🎯 FINAL SIGNAL: {signal_emoji} {msg.final_signal}")
+    signal_emoji = format_signal_emoji(msg.signal)
+    ctx.logger.info(f"🎯 FINAL SIGNAL: {signal_emoji} {msg.signal}")
     ctx.logger.info(f"🎲 CONFIDENCE:   {msg.confidence:.2%}")
     ctx.logger.info(f"💰 PRICE:        ${msg.current_price:,.2f}")
     ctx.logger.info(f"⏰ TIMESTAMP:    {msg.timestamp}")
@@ -146,8 +113,10 @@ async def handle_signal_response(ctx: Context, sender: str, msg: SignalResponse)
     ctx.logger.info(f"Flow Direction:   {flow_direction}")
     ctx.logger.info("")
     
+    
     # Risk Management Section
-    if msg.final_signal in ["BUY", "SELL"] and msg.take_profit > 0 and msg.stop_loss > 0:
+    # print(msg.signal,msg.take_profit, msg.stop_loss)
+    if msg.signal in ["BUY", "SELL"] and msg.take_profit > 0 and msg.stop_loss > 0:
         ctx.logger.info("⚖️ RISK MANAGEMENT")
         ctx.logger.info("-" * 40)
         ctx.logger.info(f"Take Profit:      ${msg.take_profit:,.2f}")
@@ -172,25 +141,11 @@ async def handle_signal_response(ctx: Context, sender: str, msg: SignalResponse)
     ctx.logger.info(f"{msg.analysis_summary}")
     ctx.logger.info("")
     
+        
     # Quick Summary Line
     confidence_emoji = "🔥" if msg.confidence > 0.8 else "✅" if msg.confidence > 0.6 else "⚠️"
-    ctx.logger.info(f"📊 SUMMARY: {signal_emoji} {msg.symbol} | {msg.final_signal} | {confidence_emoji} {msg.confidence:.1%} confidence")
+    ctx.logger.info(f"📊 SUMMARY: {signal_emoji} {msg.symbol} | {msg.signal} | {confidence_emoji} {msg.confidence:.1%} confidence")
     ctx.logger.info("=" * 80)
-
-# Create a generic model for fallback message handling
-class GenericMessage(BaseModel):
-    """Generic message model to catch all unknown messages"""
-    pass
-
-# Add a generic message handler to catch messages that don't match SignalResponse
-@user_agent.on_message(model=GenericMessage)
-async def handle_generic_message(ctx: Context, sender: str, message):
-    """Handle any message that doesn't match our known schemas"""
-    ctx.logger.info("=" * 50)
-    ctx.logger.info(f"📨 RECEIVED UNKNOWN MESSAGE FROM: {sender}")
-    ctx.logger.info("-" * 50)
-    ctx.logger.info(f"Message content: {message}")
-    ctx.logger.info("=" * 50)
 
 # Periodic task to request signals
 @user_agent.on_interval(period=30.0)  # Increased to 30 seconds for comprehensive analysis
@@ -230,7 +185,7 @@ if __name__ == "__main__":
     print("  5. Comprehensive Signal Agent (port 8002)")
     print("=" * 60)
     
-    if SIGNAL_AGENT_ADDRESS == "agent1qsignal":
+    if SIGNAL_AGENT_ADDRESS == "agent1qdcny99jhna95fyt9alu6snyalkm4r69pzusg6qkatz5wplsy8vuq00fr05":
         print("🔧 Remember to update SIGNAL_AGENT_ADDRESS with the actual address!")
         print("=" * 60)
     

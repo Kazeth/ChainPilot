@@ -12,11 +12,11 @@ export default function DashboardPage() {
     setIsLoading(true)
     setError(null)
     try {
-      const response = await fetch("https://fluffy-computing-machine-pxv46g79v9wf9r5v-8083.app.github.dev/ask", {
+      const response = await fetch("http://localhost:8001/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          question: "What's the balance of address bc1q8sxznvhualuyyes0ded7kgt33876phpjhp29rs?",
+          question: "get balance bitcoin address bc1q8sxznvhualuyyes0ded7kgt33876phpjhp29rs?",
         }),
       })
       const result = await response.json()

@@ -49,15 +49,15 @@ AGENTS = {
         "description": "Risk Management (Stop Loss & Take Profit)"
     },
     "signal": {
-        "file": "comprehensive_signal_agent.py",
+        "file": "fixed_comprehensive_signal_agent.py",
         "port": 8002,
         "description": "Comprehensive Signal Orchestrator"
     },
-    "user": {
-        "file": "comprehensive_user_agent.py",
-        "port": 8003,
-        "description": "User Interface & Display"
-    }
+    # "user": {
+    #     "file": "comprehensive_user_agent.py",
+    #     "port": 8007,
+    #     "description": "User Interface & Display"
+    # }
 }
 
 # Global list to track running processes
@@ -233,7 +233,7 @@ def run_all_agents():
     print("="*60)
     
     # Start agents in dependency order
-    agent_order = ["technical", "news", "whale", "risk", "signal", "user"]
+    agent_order = ["technical", "news", "whale", "risk", "signal"]
     
     for agent_name in agent_order:
         config = AGENTS[agent_name]
@@ -270,7 +270,7 @@ def run_all_agents():
     
     print("="*60)
     print("🎯 SYSTEM IS RUNNING!")
-    print("🔍 Monitor the User Agent output for trading signals")
+    print("🔍 Monitor the User Agent in different terminal to get output for trading signals")
     print("⏰ Signals are generated every 30 seconds")
     print("🛑 Press Ctrl+C to stop all agents")
     print("="*60)

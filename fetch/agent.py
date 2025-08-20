@@ -1349,3 +1349,20 @@ Generate a Bitcoin address for me.
 
 Give me a Bitcoin address I can use to receive coins.
 """
+
+# Test section - uncomment to test directly
+if __name__ == "__main__":
+    import asyncio
+    
+    class TestCtx:
+        logger = type("logger", (), {"info": print, "error": print})()
+    
+    async def test_query():
+        # Put your test question here
+        test_question = "get balance bitcoin address bc1q8sxznvhualuyyes0ded7kgt33876phpjhp29rs"
+        
+        result = await process_query(test_question, TestCtx(), "test_user")
+        print(f"Result: {result}")
+    
+    # Uncomment the line below to run the test
+    # asyncio.run(test_query())

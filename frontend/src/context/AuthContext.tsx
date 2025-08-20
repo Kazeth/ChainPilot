@@ -54,16 +54,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       console.log(identity?.getPrincipal().toText(), 'identity principal');
       if (authenticated) {
-        if (!identity) {
-          console.error('Identity is null, cannot create HttpAgent.');
-          return;
-        }
-        const agent = new HttpAgent({ identity });
+        // if (!identity) {
+        //   console.error('Identity is null, cannot create HttpAgent.');
+        //   return;
+        // }
+        // const agent = new HttpAgent({ identity });
 
-        if (process.env.NODE_ENV !== 'production') {
-          await agent.fetchRootKey();
-        }
-        setIsAuthenticated(true);
+        // if (process.env.NODE_ENV !== 'production') {
+        //   await agent.fetchRootKey();
+        // }
+        // setIsAuthenticated(true);
         // setPrincipal(identity.getPrincipal());
       } else {
         console.log('AuthClient not logged in');

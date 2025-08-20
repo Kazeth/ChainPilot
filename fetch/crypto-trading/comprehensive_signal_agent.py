@@ -2,6 +2,7 @@ from uagents import Agent, Context, Protocol
 from uagents.setup import fund_agent_if_low
 from pydantic import BaseModel
 import logging
+import asyncio
 from datetime import datetime
 
 # Configure logging
@@ -109,11 +110,13 @@ signal_agent = Agent(
     seed="signal_agent_seed_phrase"
 )
 
+
+
 # Fund the agent if balance is low
 fund_agent_if_low(signal_agent.wallet.address())
 
-# Define protocol
-signal_protocol = Protocol("Signal Request v1")
+# Define protocol - Use universal protocol for all agents
+signal_protocol = Protocol("Crypto Trading v1")
 
 # Agent addresses - These should match the seeds used in other agents
 TECHNICAL_AGENT_ADDRESS = "agent1qgn5e6pqta60x79jrlmhlqcajxykagyuzvsw28j25u3y7jpp3estktf0uy3"  # technical_agent_seed_phrase
@@ -142,8 +145,8 @@ def calculate_final_signal(technical_score, sentiment_score, whale_score, techni
     # Weight each score by its confidence and predefined importance
     # Technical: 40%, Sentiment: 30%, Whale: 30%
     weights = {
-        'technical': 0.4,
-        'sentiment': 0.3,
+        'technical': 0.3,
+        'sentiment': 0.4,
         'whale': 0.3
     }
     
@@ -154,7 +157,7 @@ def calculate_final_signal(technical_score, sentiment_score, whale_score, techni
     ) / total_confidence
     
     # Calculate overall confidence
-    overall_confidence = min(0.95, total_confidence / 3.0)
+    overall_confidence = min(0.75, total_confidence / 3.0)
     
     # Determine signal based on weighted score
     if weighted_score > 0.3:
@@ -189,11 +192,80 @@ async def handle_signal_request(ctx: Context, sender: str, msg: SignalRequest):
     ctx.logger.info(f"Received comprehensive signal request for {msg.symbol} from {sender}")
     
     if USE_REAL_AGENTS:
-        # Try to use real agents first
+        # Use real agents 
         ctx.logger.info("🔄 Using REAL AGENTS for comprehensive analysis...")
         try:
-            await handle_signal_request_with_real_agents(ctx, sender, msg)
-            return
+            # Clear any old responses for this symbol
+            if msg.symbol in agent_responses:
+                agent_responses[msg.symbol] = {}
+            else:
+                agent_responses[msg.symbol] = {}
+            
+            # Send requests to all analysis agents
+            ctx.logger.info(f"Requesting analysis from all agents for {msg.symbol}...")
+            
+            # Request technical analysis
+            await ctx.send(TECHNICAL_AGENT_ADDRESS, TechnicalRequest(symbol=msg.symbol))
+            ctx.logger.info("✓ Technical analysis request sent")
+            
+            # Request news sentiment analysis
+            await ctx.send(NEWS_AGENT_ADDRESS, NewsRequest(symbol=msg.symbol))
+            ctx.logger.info("✓ News analysis request sent")
+            
+            # Request whale activity analysis
+            await ctx.send(WHALE_AGENT_ADDRESS, WhaleRequest(symbol=msg.symbol))
+            ctx.logger.info("✓ Whale analysis request sent")
+            
+            # Wait for responses with polling approach
+            max_wait_time = 15  # Total wait time in seconds
+            check_interval = 1   # Check every 1 second
+            waited_time = 0
+            
+            ctx.logger.info(f"🔍 DEBUG: agent_responses before polling: {list(agent_responses.keys())}")
+            
+            while waited_time < max_wait_time:
+                await asyncio.sleep(check_interval)
+                waited_time += check_interval
+                
+                # Check if we received responses
+                responses = agent_responses.get(msg.symbol, {})
+                technical_data = responses.get('technical')
+                news_data = responses.get('news')
+                whale_data = responses.get('whale')
+                
+                # Debug: Show actual stored data
+                ctx.logger.info(f"🔍 DEBUG: agent_responses has symbols: {list(agent_responses.keys())}")
+                ctx.logger.info(f"🔍 DEBUG: responses for {msg.symbol}: {list(responses.keys()) if responses else 'None'}")
+                
+                # Log current status
+                ctx.logger.info(f"⏱️  Waiting {waited_time}s: Technical={bool(technical_data)}, News={bool(news_data)}, Whale={bool(whale_data)}")
+                
+                # If we have all responses, process immediately
+                if technical_data and news_data and whale_data:
+                    ctx.logger.info("✅ All responses received! Processing...")
+                    break
+                
+                # If we have at least 2 responses after 8 seconds, proceed
+                elif waited_time >= 8 and sum([bool(technical_data), bool(news_data), bool(whale_data)]) >= 2:
+                    ctx.logger.info("✅ Sufficient responses received! Processing...")
+                    break
+            
+            # Final check for any responses
+            responses = agent_responses.get(msg.symbol, {})
+            technical_data = responses.get('technical')
+            news_data = responses.get('news')
+            whale_data = responses.get('whale')
+            
+            ctx.logger.info(f"Received responses: Technical={bool(technical_data)}, News={bool(news_data)}, Whale={bool(whale_data)}")
+            
+            # If we have at least some data, process it
+            if technical_data or news_data or whale_data:
+                await process_and_send_final_signal(ctx, sender, msg.symbol, technical_data, news_data, whale_data)
+                return
+            else:
+                # Fall back to mock data if no responses
+                ctx.logger.warning("No responses received from agents, falling back to mock data")
+                
         except Exception as e:
             ctx.logger.warning(f"Real agents failed: {e}, falling back to mock data")
     
@@ -357,32 +429,35 @@ async def handle_signal_request(ctx: Context, sender: str, msg: SignalRequest):
 @signal_protocol.on_message(model=TechnicalResponse)
 async def handle_technical_response(ctx: Context, sender: str, msg: TechnicalResponse):
     """Handle technical analysis responses"""
-    ctx.logger.info(f"Received technical analysis for {msg.symbol}: Score={msg.technical_score:.3f}")
+    ctx.logger.info(f"🔥 HANDLER CALLED: Received technical analysis for {msg.symbol}: Score={msg.technical_score:.3f}")
     
     # Store the response using symbol as key
     if msg.symbol not in agent_responses:
         agent_responses[msg.symbol] = {}
     agent_responses[msg.symbol]['technical'] = msg
+    ctx.logger.info(f"🔥 STORED: Technical data for {msg.symbol} stored successfully")
 
 @signal_protocol.on_message(model=NewsResponse)
 async def handle_news_response(ctx: Context, sender: str, msg: NewsResponse):
     """Handle news sentiment responses"""
-    ctx.logger.info(f"Received news analysis for {msg.symbol}: Score={msg.sentiment_score:.3f}")
+    ctx.logger.info(f"🔥 HANDLER CALLED: Received news analysis for {msg.symbol}: Score={msg.sentiment_score:.3f}")
     
     # Store the response using symbol as key
     if msg.symbol not in agent_responses:
         agent_responses[msg.symbol] = {}
     agent_responses[msg.symbol]['news'] = msg
+    ctx.logger.info(f"🔥 STORED: News data for {msg.symbol} stored successfully")
 
 @signal_protocol.on_message(model=WhaleResponse)
 async def handle_whale_response(ctx: Context, sender: str, msg: WhaleResponse):
     """Handle whale activity responses"""
-    ctx.logger.info(f"Received whale analysis for {msg.symbol}: Score={msg.whale_score:.3f}")
+    ctx.logger.info(f"🔥 HANDLER CALLED: Received whale analysis for {msg.symbol}: Score={msg.whale_score:.3f}")
     
     # Store the response using symbol as key
     if msg.symbol not in agent_responses:
         agent_responses[msg.symbol] = {}
     agent_responses[msg.symbol]['whale'] = msg
+    ctx.logger.info(f"🔥 STORED: Whale data for {msg.symbol} stored successfully")
 
 @signal_protocol.on_message(model=RiskResponse)
 async def handle_risk_response(ctx: Context, sender: str, msg: RiskResponse):
@@ -394,68 +469,7 @@ async def handle_risk_response(ctx: Context, sender: str, msg: RiskResponse):
         agent_responses[msg.symbol] = {}
     agent_responses[msg.symbol]['risk'] = msg
 
-# Alternative signal handler that uses real agents
-@signal_protocol.on_message(model=SignalRequest)
-async def handle_signal_request_with_real_agents(ctx: Context, sender: str, msg: SignalRequest):
-    """Handle comprehensive signal requests using real agents"""
-    ctx.logger.info(f"Received comprehensive signal request for {msg.symbol} from {sender}")
-    
-    try:
-        # Store the original requester
-        request_id = f"{msg.symbol}_{sender}_{datetime.now().timestamp()}"
-        pending_requests[request_id] = {
-            'symbol': msg.symbol,
-            'original_sender': sender,
-            'timestamp': datetime.now(),
-            'responses_needed': ['technical', 'news', 'whale'],
-            'responses_received': []
-        }
-        
-        # Clear any old responses for this symbol
-        if msg.symbol in agent_responses:
-            agent_responses[msg.symbol] = {}
-        else:
-            agent_responses[msg.symbol] = {}
-        
-        # Send requests to all analysis agents
-        ctx.logger.info(f"Requesting analysis from all agents for {msg.symbol}...")
-        
-        # Request technical analysis
-        await ctx.send(TECHNICAL_AGENT_ADDRESS, TechnicalRequest(symbol=msg.symbol))
-        ctx.logger.info("✓ Technical analysis request sent")
-        
-        # Request news sentiment analysis
-        await ctx.send(NEWS_AGENT_ADDRESS, NewsRequest(symbol=msg.symbol))
-        ctx.logger.info("✓ News analysis request sent")
-        
-        # Request whale activity analysis
-        await ctx.send(WHALE_AGENT_ADDRESS, WhaleRequest(symbol=msg.symbol))
-        ctx.logger.info("✓ Whale analysis request sent")
-        
-        # Wait for responses and then compile final signal
-        await asyncio.sleep(5)  # Wait 5 seconds for responses
-        
-        # Check if we received responses
-        responses = agent_responses.get(msg.symbol, {})
-        technical_data = responses.get('technical')
-        news_data = responses.get('news')
-        whale_data = responses.get('whale')
-        
-        ctx.logger.info(f"Received responses: Technical={bool(technical_data)}, News={bool(news_data)}, Whale={bool(whale_data)}")
-        
-        # If we have at least some data, process it
-        if technical_data or news_data or whale_data:
-            await process_and_send_final_signal(ctx, sender, msg.symbol, technical_data, news_data, whale_data)
-        else:
-            # Fall back to mock data if no responses
-            ctx.logger.warning("No responses received from agents, falling back to mock data")
-            await handle_signal_request(ctx, sender, msg)
-            
-    except Exception as e:
-        ctx.logger.error(f"Error processing signal request with real agents: {e}")
-        # Fall back to mock data
-        await handle_signal_request(ctx, sender, msg)
-
+# Process and send final signal function
 async def process_and_send_final_signal(ctx: Context, sender: str, symbol: str, technical_data, news_data, whale_data):
     """Process received data and send final comprehensive signal"""
     

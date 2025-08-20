@@ -1,6 +1,11 @@
 from uagents import Agent, Context, Protocol
 from uagents.setup import fund_agent_if_low
-from pydantic import BaseModel
+from shared_types import (
+    WhaleRequest, 
+    WhaleResponse, 
+    PROTOCOL_NAME,
+    WHALE_AGENT_ADDRESS
+)
 import requests
 import logging
 from datetime import datetime, timedelta
@@ -8,21 +13,6 @@ import random
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-
-# Define message structures
-class WhaleRequest(BaseModel):
-    """Request for whale activity analysis"""
-    symbol: str  # e.g., "BTCUSDT"
-
-class WhaleResponse(BaseModel):
-    """Response with whale activity analysis"""
-    symbol: str
-    whale_score: float  # -1 (very bearish) to 1 (very bullish)
-    large_transactions: int
-    exchange_inflow: float  # USD value
-    exchange_outflow: float  # USD value
-    net_flow: float  # Outflow - Inflow (positive = bullish)
-    confidence: float
 
 # Create Whale Agent
 whale_agent = Agent(
@@ -35,8 +25,8 @@ whale_agent = Agent(
 # Fund the agent if balance is low
 fund_agent_if_low(whale_agent.wallet.address())
 
-# Define protocol
-whale_protocol = Protocol("Whale Analysis v1")
+# Define protocol using shared constant
+whale_protocol = Protocol(PROTOCOL_NAME)
 
 # API configuration
 WHALE_ALERT_API_KEY = "your_whale_alert_api_key"  # Get from https://whale-alert.io/
@@ -178,8 +168,9 @@ def analyze_whale_activity(transactions):
 
 @whale_protocol.on_message(model=WhaleRequest)
 async def handle_whale_request(ctx: Context, sender: str, msg: WhaleRequest):
-    """Handle whale activity analysis requests"""
-    ctx.logger.info(f"Received whale analysis request for {msg.symbol} from {sender}")
+    """Handle whale activity analysis requests with JSON logging"""
+    ctx.logger.info(f"🐋 WHALE AGENT: Received request for {msg.symbol} from {sender}")
+    ctx.logger.info(f"📄 Request JSON: {msg.to_json()}")
     
     try:
         # Get whale transactions
@@ -188,34 +179,38 @@ async def handle_whale_request(ctx: Context, sender: str, msg: WhaleRequest):
         # Analyze whale activity
         whale_score, large_transactions, exchange_inflow, exchange_outflow, net_flow, confidence = analyze_whale_activity(transactions)
         
-        # Create response
+        # Create JSON response (updated format)
         response = WhaleResponse(
             symbol=msg.symbol,
             whale_score=whale_score,
+            whale_transactions=large_transactions,
+            net_whale_flow=net_flow,
             large_transactions=large_transactions,
-            exchange_inflow=exchange_inflow,
-            exchange_outflow=exchange_outflow,
-            net_flow=net_flow,
+            average_transaction_size=abs(net_flow / max(large_transactions, 1)),
             confidence=confidence
         )
         
-        # Send response
+        # Send JSON response with logging
+        ctx.logger.info(f"📤 Sending whale JSON response: {response.to_json()}")
         await ctx.send(sender, response)
-        ctx.logger.info(f"Sent whale analysis for {msg.symbol}: Score={whale_score:.3f}, Transactions={large_transactions}, Net Flow=${net_flow:,.0f}")
+        ctx.logger.info(f"✅ Whale analysis sent for {msg.symbol}: Score={whale_score:.3f}, Transactions={large_transactions}, Net Flow=${net_flow:,.0f}")
         
     except Exception as e:
-        ctx.logger.error(f"Error in whale analysis: {e}")
+        ctx.logger.error(f"❌ Error in whale analysis: {e}")
+        import traceback
+        traceback.print_exc()
         
-        # Send neutral response on error
+        # Send neutral JSON response on error
         error_response = WhaleResponse(
             symbol=msg.symbol,
             whale_score=0.0,
+            whale_transactions=0,
+            net_whale_flow=0.0,
             large_transactions=0,
-            exchange_inflow=0.0,
-            exchange_outflow=0.0,
-            net_flow=0.0,
+            average_transaction_size=0.0,
             confidence=0.0
         )
+        ctx.logger.info(f"📤 Sending error JSON response: {error_response.to_json()}")
         await ctx.send(sender, error_response)
 
 # Include the protocol

@@ -1,6 +1,11 @@
 from uagents import Agent, Context, Protocol
 from uagents.setup import fund_agent_if_low
-from pydantic import BaseModel
+from shared_types import (
+    NewsRequest, 
+    NewsResponse, 
+    PROTOCOL_NAME,
+    NEWS_AGENT_ADDRESS
+)
 import requests
 import logging
 from datetime import datetime, timedelta
@@ -8,19 +13,6 @@ import re
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-
-# Define message structures
-class NewsRequest(BaseModel):
-    """Request for news sentiment analysis"""
-    symbol: str  # e.g., "BTCUSDT"
-
-class NewsResponse(BaseModel):
-    """Response with news sentiment analysis"""
-    symbol: str
-    sentiment_score: float  # -1 (very negative) to 1 (very positive)
-    news_count: int
-    headlines: list[str]  # Top headlines
-    confidence: float
 
 # Create News Agent
 news_agent = Agent(
@@ -33,8 +25,8 @@ news_agent = Agent(
 # Fund the agent if balance is low
 fund_agent_if_low(news_agent.wallet.address())
 
-# Define protocol
-news_protocol = Protocol("News Analysis v1")
+# Define protocol using shared constant
+news_protocol = Protocol(PROTOCOL_NAME)
 
 # API configuration - You need to get your own API key from NewsAPI
 NEWS_API_KEY = "your_newsapi_key_here"  # Replace with your actual API key
@@ -188,8 +180,9 @@ def calculate_overall_sentiment(articles):
 
 @news_protocol.on_message(model=NewsRequest)
 async def handle_news_request(ctx: Context, sender: str, msg: NewsRequest):
-    """Handle news sentiment analysis requests"""
-    ctx.logger.info(f"Received news analysis request for {msg.symbol} from {sender}")
+    """Handle news sentiment analysis requests with JSON logging"""
+    ctx.logger.info(f"📰 NEWS AGENT: Received request for {msg.symbol} from {sender}")
+    ctx.logger.info(f"📄 Request JSON: {msg.to_json()}")
     
     try:
         # Get news articles
@@ -198,7 +191,7 @@ async def handle_news_request(ctx: Context, sender: str, msg: NewsRequest):
         # Analyze sentiment
         sentiment_score, news_count, headlines, confidence = calculate_overall_sentiment(articles)
         
-        # Create response
+        # Create JSON response
         response = NewsResponse(
             symbol=msg.symbol,
             sentiment_score=sentiment_score,
@@ -207,12 +200,15 @@ async def handle_news_request(ctx: Context, sender: str, msg: NewsRequest):
             confidence=confidence
         )
         
-        # Send response
+        # Send JSON response with logging
+        ctx.logger.info(f"📤 Sending news JSON response: {response.to_json()}")
         await ctx.send(sender, response)
-        ctx.logger.info(f"Sent news analysis for {msg.symbol}: Sentiment={sentiment_score:.3f}, Articles={news_count}")
+        ctx.logger.info(f"✅ News analysis sent for {msg.symbol}: Sentiment={sentiment_score:.3f}, Articles={news_count}")
         
     except Exception as e:
-        ctx.logger.error(f"Error in news analysis: {e}")
+        ctx.logger.error(f"❌ Error in news analysis: {e}")
+        import traceback
+        traceback.print_exc()
         
         # Send neutral response on error
         error_response = NewsResponse(
@@ -222,6 +218,7 @@ async def handle_news_request(ctx: Context, sender: str, msg: NewsRequest):
             headlines=["Error fetching news"],
             confidence=0.0
         )
+        ctx.logger.info(f"📤 Sending error JSON response: {error_response.to_json()}")
         await ctx.send(sender, error_response)
 
 # Include the protocol

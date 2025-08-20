@@ -13,7 +13,9 @@
   "dependencies": {
     "@dfinity/auth-client": "^3.2.1",
     "lucide-react": "^0.540.0",
+    "moc": "^0.1.5",
     "pandas": "^0.0.3",
+    "path": "^0.12.7",
     "prettier": "^3.6.2",
     "react": "^19.1.1",
     "react-router-dom": "^7.8.1"

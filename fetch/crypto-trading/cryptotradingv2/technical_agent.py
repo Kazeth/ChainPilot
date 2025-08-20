@@ -1,6 +1,11 @@
 from uagents import Agent, Context, Protocol
 from uagents.setup import fund_agent_if_low
-from pydantic import BaseModel
+from shared_types import (
+    TechnicalRequest, 
+    TechnicalResponse, 
+    PROTOCOL_NAME,
+    TECHNICAL_AGENT_ADDRESS
+)
 import requests
 import pandas as pd
 import numpy as np
@@ -13,26 +18,6 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
-# Define message structures
-class TechnicalRequest(BaseModel):
-    """Request for technical analysis"""
-    symbol: str  # e.g., "BTCUSDT"
-
-class TechnicalResponse(BaseModel):
-    """Response with technical analysis"""
-    symbol: str
-    rsi: float
-    macd: float
-    macd_signal: float
-    macd_histogram: float
-    sma_20: float
-    sma_50: float
-    bollinger_upper: float
-    bollinger_lower: float
-    atr: float
-    current_price: float
-    technical_score: float  # Combined technical score (-1 to 1)
-
 # Create Technical Agent
 technical_agent = Agent(
     name="technical_agent",
@@ -44,8 +29,8 @@ technical_agent = Agent(
 # Fund the agent if balance is low
 fund_agent_if_low(technical_agent.wallet.address())
 
-# Define protocol
-technical_protocol = Protocol("Technical Analysis v1")
+# Define protocol using shared constant
+technical_protocol = Protocol(PROTOCOL_NAME)
 
 # API configuration
 BINANCE_BASE_URL = "https://api.binance.com/api/v3"
@@ -171,8 +156,9 @@ def calculate_technical_score(rsi, macd, macd_signal, current_price, sma_20, sma
 
 @technical_protocol.on_message(model=TechnicalRequest)
 async def handle_technical_request(ctx: Context, sender: str, msg: TechnicalRequest):
-    """Handle technical analysis requests"""
-    ctx.logger.info(f"Received technical analysis request for {msg.symbol} from {sender}")
+    """Handle technical analysis requests with JSON logging"""
+    ctx.logger.info(f"📊 TECHNICAL AGENT: Received request for {msg.symbol} from {sender}")
+    ctx.logger.info(f"📄 Request JSON: {msg.to_json()}")
     
     try:
         # Get market data
@@ -208,7 +194,7 @@ async def handle_technical_request(ctx: Context, sender: str, msg: TechnicalRequ
             latest['bb_upper'], latest['bb_lower']
         )
         
-        # Create response
+        # Create JSON response
         response = TechnicalResponse(
             symbol=msg.symbol,
             rsi=float(latest['rsi']),
@@ -224,12 +210,15 @@ async def handle_technical_request(ctx: Context, sender: str, msg: TechnicalRequ
             technical_score=technical_score
         )
         
-        # Send response
+        # Send JSON response with logging
+        ctx.logger.info(f"📤 Sending technical JSON response: {response.to_json()}")
         await ctx.send(sender, response)
-        ctx.logger.info(f"Sent technical analysis for {msg.symbol}: Score={technical_score:.3f}, RSI={latest['rsi']:.2f}")
+        ctx.logger.info(f"✅ Technical analysis sent for {msg.symbol}: Score={technical_score:.3f}, RSI={latest['rsi']:.2f}")
         
     except Exception as e:
-        ctx.logger.error(f"Error in technical analysis: {e}")
+        ctx.logger.error(f"❌ Error in technical analysis: {e}")
+        import traceback
+        traceback.print_exc()
 
 # Include the protocol
 technical_agent.include(technical_protocol)
