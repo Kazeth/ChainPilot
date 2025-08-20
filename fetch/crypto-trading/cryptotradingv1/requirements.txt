@@ -1,0 +1,27 @@
+# uAgents Framework (Fetch.ai)
+uagents>=0.13.0
+
+# Data Analysis & Technical Indicators
+pandas>=2.0.0
+numpy>=1.24.0
+
+# HTTP Requests
+requests>=2.31.0
+
+# Data Validation
+pydantic>=1.10.8,<2.0.0
+
+# Date/Time Handling
+python-dateutil>=2.8.2
+
+# Optional: For enhanced technical analysis
+# ta-lib>=0.4.25  # Uncomment if you want to use TA-Lib
+
+# Optional: For advanced sentiment analysis
+# nltk>=3.8  # Uncomment for Natural Language Toolkit
+# textblob>=0.17.1  # Uncomment for TextBlob sentiment analysis
+
+# Development Tools (optional)
+# pytest>=7.4.0  # For testing
+# black>=23.7.0  # For code formatting
+# flake8>=6.0.0  # For linting
