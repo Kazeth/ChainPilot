@@ -1,5 +1,3 @@
-// src/components/Header.tsx
-
 import React, { useState, useEffect } from "react";
 import Logo from "@/assets/ChainPilot_logo.png";
 import Button from "./ui/button"; // Assuming src/components/ui/Button.tsx exists
@@ -52,6 +50,7 @@ export default function Header() {
           <Link
             to="/"
             className="flex-shrink-0 flex items-center cursor-pointer"
+            aria-label="ChainPilot Home"
           >
             <img
               src={Logo}
@@ -71,23 +70,43 @@ export default function Header() {
             </span>
           </Link>
           <div style={{ fontFamily: "'Creati Display', sans-serif" }}>
-            {/* A simple toggle to demonstrate the UI change. 
-                Replace this with your actual authentication state. */}
+            {/* Navigation for authenticated and unauthenticated users */}
             {auth.isAuthenticated ? (
               <div className="flex items-center space-x-4">
                 <div className="hidden md:flex items-baseline space-x-1">
                   <Link
                     to="/dashboard"
                     className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
+                    aria-label="Go to Dashboard"
                   >
                     Dashboard
                   </Link>
-                  {/* <Link to="/ai-analytics" className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium">AI Analytics</Link> */}
-                  {/* <Link to="/portfolio" className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Portfolio</Link> */}
+                  <Link
+                    to="/analytics"
+                    className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
+                    aria-label="Go to Analytics"
+                  >
+                    Analytics
+                  </Link>
+                  <Link
+                    to="/portfolio"
+                    className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
+                    aria-label="Go to Portfolio"
+                  >
+                    Portfolio
+                  </Link>
+                  <Link
+                    to="/wallet"
+                    className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
+                    aria-label="Go to Wallet"
+                  >
+                    Wallet
+                  </Link>
                 </div>
                 <Button
                   onClick={handleLogout}
                   className="bg-zinc-700 border-zinc-700 hover:bg-zinc-600 hover:border-zinc-600"
+                  aria-label="Log out from ChainPilot"
                 >
                   Log Out
                 </Button>
@@ -96,6 +115,7 @@ export default function Header() {
               <Button
                 onClick={handleLogin}
                 className="bg-[#87efff] border-[#87efff] text-white-900 hover:bg-[#6fe2f6] hover:border-[#6fe2f6]"
+                aria-label="Log in to ChainPilot"
               >
                 Log In
               </Button>

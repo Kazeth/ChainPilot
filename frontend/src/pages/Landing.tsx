@@ -21,6 +21,8 @@ import AboutImage2 from "../assets/About2.jpg";
 import AboutImage3 from "../assets/About3.jpg";
 import AboutImage4 from "../assets/About4.jpg";
 import { useState, useEffect } from "react";
+import { useAuthContext } from "../context/AuthContext"; // Import AuthContext
+import { useNavigate } from "react-router-dom"; // Import useNavigate
 
 // Data for team members - in a real app, this might come from an API
 const teamMembers = [
@@ -61,6 +63,17 @@ const carouselImages = [
 
 export default function LandingPage() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const navigate = useNavigate(); // Initialize useNavigate
+  const auth = useAuthContext(); // Initialize useAuthContext
+
+  // Handle Start Now button click
+  async function handleStartNow() {
+    if (auth.isAuthenticated) {
+      navigate("/dashboard");
+    } else {
+      await auth.login();
+    }
+  }
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -118,8 +131,16 @@ export default function LandingPage() {
             markets with precision and confidence.
           </p>
           <div className="mt-8">
-            <Button className="bg-[#87efff] border-[#87efff] text-white-900 hover:bg-[#6fe2f6] hover:border-[#6fe2f6] px-8 py-3 text-base">
-              Start Now
+            <Button
+              onClick={handleStartNow}
+              className="bg-[#87efff] border-[#87efff] text-white-900 hover:bg-[#6fe2f6] hover:border-[#6fe2f6] px-8 py-3 text-base"
+              aria-label={
+                auth.isAuthenticated
+                  ? "Go to Dashboard"
+                  : "Start Now - Log in to ChainPilot"
+              }
+            >
+              {auth.isAuthenticated ? "Go to Dashboard" : "Start Now"}
             </Button>
           </div>
         </div>
@@ -200,13 +221,20 @@ export default function LandingPage() {
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6">
             <div className="flex items-center gap-4">
               <BrainCircuit className="h-10 w-10 text-[#87efff]" />
-              <h2 className="text-3xl font-bold text-white" style={{ fontFamily: "'Creati Display Bold', sans-serif" }}>
+              <h2
+                className="text-3xl font-bold text-white"
+                style={{ fontFamily: "'Creati Display Bold', sans-serif" }}
+              >
                 AI-Powered Analytical Review
               </h2>
             </div>
-            <p className="text-zinc-400 text-lg max-w-md" style={{ fontFamily: "'Creati Display', sans-serif" }}>
-              Advanced AI algorithms analyze market data, sentiment, and technical indicators to provide intelligent
-              trading recommendations and optimal timing signals.
+            <p
+              className="text-zinc-400 text-lg max-w-md"
+              style={{ fontFamily: "'Creati Display', sans-serif" }}
+            >
+              Advanced AI algorithms analyze market data, sentiment, and
+              technical indicators to provide intelligent trading
+              recommendations and optimal timing signals.
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -220,10 +248,15 @@ export default function LandingPage() {
                 >
                   "What to Buy" Suggestions
                 </h3>
-                <p className="text-zinc-400 text-lg" style={{ fontFamily: "'Creati Display', sans-serif" }}>
-                  AI scans for high-potential opportunities using on-chain fundamentals, market sentiment, and technical
-                  analysis. Stop guessing and start making data-driven decisions with our advanced AI that analyzes
-                  thousands of data points across the market.
+                <p
+                  className="text-zinc-400 text-lg"
+                  style={{ fontFamily: "'Creati Display', sans-serif" }}
+                >
+                  AI scans for high-potential opportunities using on-chain
+                  fundamentals, market sentiment, and technical analysis. Stop
+                  guessing and start making data-driven decisions with our
+                  advanced AI that analyzes thousands of data points across the
+                  market.
                 </p>
               </div>
             </Card>
@@ -238,9 +271,14 @@ export default function LandingPage() {
                 >
                   "When to Buy/Sell" Signals
                 </h3>
-                <p className="text-zinc-400 text-lg" style={{ fontFamily: "'Creati Display', sans-serif" }}>
-                  Real-time alerts signal opportune moments to enter or exit positions, maximizing gains and minimizing
-                  losses. Get precise timing recommendations based on market conditions and technical indicators.
+                <p
+                  className="text-zinc-400 text-lg"
+                  style={{ fontFamily: "'Creati Display', sans-serif" }}
+                >
+                  Real-time alerts signal opportune moments to enter or exit
+                  positions, maximizing gains and minimizing losses. Get precise
+                  timing recommendations based on market conditions and
+                  technical indicators.
                 </p>
               </div>
             </Card>
@@ -254,13 +292,20 @@ export default function LandingPage() {
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6">
             <div className="flex items-center gap-4">
               <Settings className="h-10 w-10 text-[#87efff]" />
-              <h2 className="text-3xl font-bold text-white" style={{ fontFamily: "'Creati Display Bold', sans-serif" }}>
+              <h2
+                className="text-3xl font-bold text-white"
+                style={{ fontFamily: "'Creati Display Bold', sans-serif" }}
+              >
                 Automated Buy/Sell Execution
               </h2>
             </div>
-            <p className="text-zinc-400 text-lg max-w-md" style={{ fontFamily: "'Creati Display', sans-serif" }}>
-              Disciplined automated trading with customizable take profit and stop loss levels. Execute your strategy
-              24/7 without emotional interference.
+            <p
+              className="text-zinc-400 text-lg max-w-md"
+              style={{ fontFamily: "'Creati Display', sans-serif" }}
+            >
+              Disciplined automated trading with customizable take profit and
+              stop loss levels. Execute your strategy 24/7 without emotional
+              interference.
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -274,9 +319,13 @@ export default function LandingPage() {
                 >
                   Take Profit (TP)
                 </h3>
-                <p className="text-zinc-400 text-lg" style={{ fontFamily: "'Creati Display', sans-serif" }}>
-                  Set specific price targets. When reached, ChainPilot automatically sells to lock in your gains.
-                  Execute your trading strategy with precision and discipline, 24/7.
+                <p
+                  className="text-zinc-400 text-lg"
+                  style={{ fontFamily: "'Creati Display', sans-serif" }}
+                >
+                  Set specific price targets. When reached, ChainPilot
+                  automatically sells to lock in your gains. Execute your
+                  trading strategy with precision and discipline, 24/7.
                 </p>
               </div>
             </Card>
@@ -291,9 +340,13 @@ export default function LandingPage() {
                 >
                   Stop Loss (SL)
                 </h3>
-                <p className="text-zinc-400 text-lg" style={{ fontFamily: "'Creati Display', sans-serif" }}>
-                  Critical risk management tool that automatically exits trades to protect from significant losses. Set
-                  your rules once and let ChainPilot manage your positions.
+                <p
+                  className="text-zinc-400 text-lg"
+                  style={{ fontFamily: "'Creati Display', sans-serif" }}
+                >
+                  Critical risk management tool that automatically exits trades
+                  to protect from significant losses. Set your rules once and
+                  let ChainPilot manage your positions.
                 </p>
               </div>
             </Card>
@@ -308,9 +361,13 @@ export default function LandingPage() {
                 >
                   Set & Forget
                 </h3>
-                <p className="text-zinc-400 text-lg" style={{ fontFamily: "'Creati Display', sans-serif" }}>
-                  Configure TP/SL levels once and gain peace of mind that your strategy is active even when offline.
-                  Automated execution ensures you never miss an opportunity.
+                <p
+                  className="text-zinc-400 text-lg"
+                  style={{ fontFamily: "'Creati Display', sans-serif" }}
+                >
+                  Configure TP/SL levels once and gain peace of mind that your
+                  strategy is active even when offline. Automated execution
+                  ensures you never miss an opportunity.
                 </p>
               </div>
             </Card>
@@ -324,13 +381,20 @@ export default function LandingPage() {
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6">
             <div className="flex items-center gap-4">
               <Shield className="h-10 w-10 text-[#87efff]" />
-              <h2 className="text-3xl font-bold text-white" style={{ fontFamily: "'Creati Display Bold', sans-serif" }}>
+              <h2
+                className="text-3xl font-bold text-white"
+                style={{ fontFamily: "'Creati Display Bold', sans-serif" }}
+              >
                 Secure Wallet Inheritance Protocol
               </h2>
             </div>
-            <p className="text-zinc-400 text-lg max-w-md" style={{ fontFamily: "'Creati Display', sans-serif" }}>
-              Revolutionary inheritance system that securely transfers your crypto assets to designated beneficiaries
-              after periods of inactivity, ensuring your legacy is protected.
+            <p
+              className="text-zinc-400 text-lg max-w-md"
+              style={{ fontFamily: "'Creati Display', sans-serif" }}
+            >
+              Revolutionary inheritance system that securely transfers your
+              crypto assets to designated beneficiaries after periods of
+              inactivity, ensuring your legacy is protected.
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
@@ -344,9 +408,12 @@ export default function LandingPage() {
                 >
                   Inactivity Fallback Safe
                 </h3>
-                <p className="text-zinc-400" style={{ fontFamily: "'Creati Display', sans-serif" }}>
-                  Digital "dead man's switch" - define a specific period of inactivity for automatic protocol
-                  activation.
+                <p
+                  className="text-zinc-400"
+                  style={{ fontFamily: "'Creati Display', sans-serif" }}
+                >
+                  Digital "dead man's switch" - define a specific period of
+                  inactivity for automatic protocol activation.
                 </p>
               </div>
             </Card>
@@ -361,8 +428,12 @@ export default function LandingPage() {
                 >
                   Beneficiary Designation
                 </h3>
-                <p className="text-zinc-400" style={{ fontFamily: "'Creati Display', sans-serif" }}>
-                  Securely designate a beneficiary wallet address within the encrypted ChainPilot system.
+                <p
+                  className="text-zinc-400"
+                  style={{ fontFamily: "'Creati Display', sans-serif" }}
+                >
+                  Securely designate a beneficiary wallet address within the
+                  encrypted ChainPilot system.
                 </p>
               </div>
             </Card>
@@ -377,8 +448,12 @@ export default function LandingPage() {
                 >
                   Automated Transfer
                 </h3>
-                <p className="text-zinc-400" style={{ fontFamily: "'Creati Display', sans-serif" }}>
-                  After verification process, assets are automatically and safely transferred to designated beneficiary.
+                <p
+                  className="text-zinc-400"
+                  style={{ fontFamily: "'Creati Display', sans-serif" }}
+                >
+                  After verification process, assets are automatically and
+                  safely transferred to designated beneficiary.
                 </p>
               </div>
             </Card>
@@ -393,8 +468,12 @@ export default function LandingPage() {
                 >
                   Full User Control
                 </h3>
-                <p className="text-zinc-400" style={{ fontFamily: "'Creati Display', sans-serif" }}>
-                  Change inactivity period, update beneficiary address, or disable the feature at any time.
+                <p
+                  className="text-zinc-400"
+                  style={{ fontFamily: "'Creati Display', sans-serif" }}
+                >
+                  Change inactivity period, update beneficiary address, or
+                  disable the feature at any time.
                 </p>
               </div>
             </Card>
