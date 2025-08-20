@@ -27,20 +27,28 @@
         "output": "../frontend/declarations/trade_backend"
       }
     },
-    "strategy_backend": {
-      "main": "src/backend/Strategy.mo",
-      "type": "motoko",
-      "declarations": {
-        "node_compatibility": true,
-        "output": "../frontend/declarations/strategy_backend"
-      }
-    },
     "marketData_backend": {
       "main": "src/backend/MarketData.mo",
       "type": "motoko",
       "declarations": {
         "node_compatibility": true,
         "output": "../frontend/declarations/marketdata_backend"
+      }
+    },
+    "transaction_backend": {
+      "main": "src/backend/Transaction.mo",
+      "type": "motoko",
+      "declarations": {
+        "node_compatibility": true,
+        "output": "../frontend/declarations/transaction_backend"
+      }
+    },
+    "signal_backend": {
+      "main": "src/backend/Signal.mo",
+      "type": "motoko",
+      "declarations": {
+        "node_compatibility": true,
+        "output": "../frontend/declarations/signal_backend"
       }
     },
     "auditLog_backend": {

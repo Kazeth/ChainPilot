@@ -1,8 +1,5 @@
 import Text "mo:base/Text";
-import Blob "mo:base/Blob";
 import Nat "mo:base/Nat";
-import Nat16 "mo:base/Nat16";
-import Nat32 "mo:base/Nat32";
 import Float "mo:base/Float";
 import Time "mo:base/Time";
 import TrieMap "mo:base/TrieMap";
