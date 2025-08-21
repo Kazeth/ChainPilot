@@ -1,5 +1,12 @@
 from uagents import Agent, Context, Protocol
 from uagents.setup import fund_agent_if_low
+from uagents_core.contrib.protocols.chat import (
+    chat_protocol_spec,
+    ChatMessage,
+    ChatAcknowledgement,
+    TextContent,
+    StartSessionContent,
+)
 from shared_types import (
     NewsRequest, 
     NewsResponse, 
@@ -19,7 +26,7 @@ news_agent = Agent(
     name="news_agent",
     port=8005,
     endpoint=["http://localhost:8005/submit"],
-    seed="news_agent_seed_phrase"
+    seed="news_agent_seed_phrase",
 )
 
 # Fund the agent if balance is low
@@ -27,6 +34,9 @@ fund_agent_if_low(news_agent.wallet.address())
 
 # Define protocol using shared constant
 news_protocol = Protocol(PROTOCOL_NAME)
+
+# Create chat protocol
+chat_protocol = Protocol(spec=chat_protocol_spec)
 
 # API configuration - You need to get your own API key from NewsAPI
 NEWS_API_KEY = "your_newsapi_key_here"  # Replace with your actual API key
@@ -221,12 +231,215 @@ async def handle_news_request(ctx: Context, sender: str, msg: NewsRequest):
         ctx.logger.info(f"📤 Sending error JSON response: {error_response.to_json()}")
         await ctx.send(sender, error_response)
 
-# Include the protocol
+# ========================================
+# CHAT PROTOCOL HANDLERS
+# ========================================
+
+@chat_protocol.on_message(model=ChatMessage)
+async def handle_chat_message(ctx: Context, sender: str, msg: ChatMessage):
+    """Handle chat messages for news sentiment analysis"""
+    ctx.logger.info(f"💬 Chat message from {sender}: {msg.content[0].text}")
+    
+    try:
+        message_text = msg.content[0].text
+        message_text_lower = message_text.lower()
+        
+        # Extract session ID and user agent address if present
+        session_id = None
+        user_agent_address = None
+        if "session:" in message_text:
+            try:
+                session_part = message_text.split("session:")[1].split()[0]
+                session_id = session_part.strip()
+                ctx.logger.info(f"📰 News analysis requested for session: {session_id}")
+            except:
+                ctx.logger.warning("Could not extract session ID from message")
+        
+        if "user:" in message_text:
+            try:
+                user_part = message_text.split("user:")[1].split()[0]
+                user_agent_address = user_part.strip()
+                ctx.logger.info(f"📰 Will send response to user agent: {user_agent_address[:16]}...")
+            except:
+                ctx.logger.warning("Could not extract user agent address from message")
+        
+        response_text = "📰 **News Sentiment Agent**\n\n"
+        
+        # Check if user is asking for sentiment analysis
+        if any(word in message_text_lower for word in ["news", "sentiment", "headlines", "analyze"]):
+            # Look for trading symbols
+            symbols = []
+            common_symbols = ["btc", "eth", "bnb", "ada", "sol", "btcusdt", "ethusdt", "bnbusdt", "adausdt", "solusdt"]
+            
+            for symbol in common_symbols:
+                if symbol in message_text_lower:  # Fix: Use lowercase for consistent matching
+                    if symbol in ["btc", "bitcoin"]:
+                        symbols.append("BTCUSDT")
+                    elif symbol in ["eth", "ethereum"]:
+                        symbols.append("ETHUSDT")
+                    elif symbol in ["bnb", "binance"]:
+                        symbols.append("BNBUSDT")
+                    elif symbol in ["ada", "cardano"]:
+                        symbols.append("ADAUSDT")
+                    elif symbol in ["sol", "solana"]:
+                        symbols.append("SOLUSDT")
+                    else:
+                        symbols.append(symbol.upper())
+            
+            if symbols:
+                response_text += f"🔄 **Analyzing {', '.join(symbols)} news sentiment...**\n\n"
+                
+                # Perform sentiment analysis for the first symbol
+                symbol = symbols[0]
+                try:
+                    # Get news articles
+                    articles = get_crypto_news(symbol)
+                    
+                    # Analyze sentiment
+                    sentiment_score, news_count, headlines, confidence = calculate_overall_sentiment(articles)
+                    
+                    # Format response
+                    response_text += f"📰 **{symbol} News Sentiment Analysis:**\n\n"
+                    response_text += f"📊 Sentiment Score: {sentiment_score:.3f}\n"
+                    response_text += f"📄 Articles Analyzed: {news_count}\n"
+                    response_text += f"🎯 Confidence: {confidence:.2%}\n\n"
+                    
+                    # Add interpretation
+                    if sentiment_score > 0.3:
+                        response_text += "🟢 **Sentiment: POSITIVE**\n"
+                        response_text += "News indicates bullish market sentiment\n\n"
+                    elif sentiment_score < -0.3:
+                        response_text += "🔴 **Sentiment: NEGATIVE**\n"
+                        response_text += "News indicates bearish market sentiment\n\n"
+                    else:
+                        response_text += "⚪ **Sentiment: NEUTRAL**\n"
+                        response_text += "News sentiment is balanced\n\n"
+                    
+                    # Show top headlines
+                    if headlines:
+                        response_text += "📖 **Top Headlines:**\n"
+                        for i, headline in enumerate(headlines[:3], 1):
+                            # Truncate long headlines
+                            display_headline = headline[:80] + "..." if len(headline) > 80 else headline
+                            response_text += f"{i}. {display_headline}\n"
+                        
+                        if len(headlines) > 3:
+                            response_text += f"...and {len(headlines) - 3} more headlines\n"
+                    
+                    if NEWS_API_KEY == "your_newsapi_key_here":
+                        response_text += "\n⚠️ **Note:** Using mock news data. "
+                        response_text += "Get a free API key from https://newsapi.org/ for real news."
+                        
+                except Exception as e:
+                    response_text += f"❌ Error analyzing {symbol}: {str(e)}"
+            else:
+                response_text += "Please specify a trading symbol (e.g., BTC, ETH, BNB)\n\n"
+                response_text += "**Example commands:**\n"
+                response_text += "• 'news sentiment for BTC'\n"
+                response_text += "• 'analyze ETH headlines'\n"
+                response_text += "• 'show BNB news sentiment'\n"
+        
+        elif "help" in message_text or "commands" in message_text:
+            response_text += "**Available Commands:**\n\n"
+            response_text += "📰 **News Analysis:**\n"
+            response_text += "• 'news [SYMBOL]' - Get news sentiment\n"
+            response_text += "• 'sentiment [SYMBOL]' - Analyze sentiment\n"
+            response_text += "• 'headlines [SYMBOL]' - Show top headlines\n\n"
+            response_text += "📊 **Sentiment Analysis:**\n"
+            response_text += "• Positive/Negative keyword detection\n"
+            response_text += "• Confidence scoring based on consistency\n"
+            response_text += "• Multiple news source aggregation\n\n"
+            response_text += "🎯 **Supported Symbols:**\n"
+            response_text += "BTC, ETH, BNB, ADA, SOL (and related pairs)"
+        
+        elif "status" in message_text:
+            response_text += "**News Agent Status:**\n\n"
+            response_text += f"🟢 Status: Active (Port 8005)\n"
+            response_text += f"💰 Address: {news_agent.address[:16]}...\n"
+            response_text += f"🌐 Protocol: {PROTOCOL_NAME}\n"
+            
+            if NEWS_API_KEY != "your_newsapi_key_here":
+                response_text += f"📡 Data Source: NewsAPI (Live)\n"
+            else:
+                response_text += f"📡 Data Source: Mock Data (Demo)\n"
+                response_text += f"🔑 API Key: Not configured\n"
+            
+            response_text += f"📰 Analysis: Keyword-based sentiment\n"
+        
+        else:
+            response_text += "I'm your news sentiment specialist! 📰\n\n"
+            response_text += "I analyze cryptocurrency news for:\n"
+            response_text += "📊 Sentiment scoring (positive/negative)\n"
+            response_text += "📈 Market sentiment trends\n"
+            response_text += "📖 Latest headlines and topics\n"
+            response_text += "🎯 Confidence assessments\n\n"
+            
+            if NEWS_API_KEY == "your_newsapi_key_here":
+                response_text += "⚠️ Currently using mock data for demonstration.\n"
+                response_text += "Configure NewsAPI key for live news analysis.\n\n"
+            
+            response_text += "Try: 'news BTC' or 'help' for commands"
+        
+        # Add session ID to response if present
+        if session_id:
+            response_text += f"\n\nsession:{session_id}"
+        
+        # Determine where to send response (user agent if specified, otherwise sender)
+        response_target = user_agent_address if user_agent_address else sender
+        ctx.logger.info(f"📤 Sending news analysis to: {response_target[:16]}...")
+        
+        # Send response
+        await ctx.send(
+            response_target,
+            ChatMessage(
+                content=[TextContent(text=response_text)]
+            )
+        )
+        
+    except Exception as e:
+        ctx.logger.error(f"❌ Error handling chat message: {e}")
+        error_response = "Sorry, I encountered an error processing your message. Please try again."
+        await ctx.send(
+            sender,
+            ChatMessage(
+                content=[TextContent(text=error_response)]
+            )
+        )
+
+@chat_protocol.on_message(model=ChatAcknowledgement)
+async def handle_chat_ack(ctx: Context, sender: str, msg: ChatAcknowledgement):
+    """Handle chat acknowledgements"""
+    ctx.logger.info(f"💬 Chat acknowledgement from {sender}")
+
+# Include both protocols
 news_agent.include(news_protocol)
+news_agent.include(chat_protocol)
 
 if __name__ == "__main__":
-    print(f"News Agent address: {news_agent.address}")
-    print("News Agent is ready to analyze sentiment...")
+    print("=" * 60)
+    print("📰 NEWS SENTIMENT AGENT WITH CHAT")
+    print("=" * 60)
+    print(f"Agent address: {news_agent.address}")
+    print(f"Port: 8005")
+    print()
+    print("📊 SENTIMENT ANALYSIS:")
+    print("  ✅ Positive/Negative keyword detection")
+    print("  ✅ Confidence scoring")
+    print("  ✅ Multiple news source aggregation")
+    print("  ✅ Real-time headline analysis")
+    print()
+    print("💬 CHAT FEATURES:")
+    print("  ✅ Interactive sentiment analysis via chat")
+    print("  ✅ Symbol-specific news analysis")
+    print("  ✅ Top headlines display")
+    print("  ✅ Help commands and status queries")
+    print()
     if NEWS_API_KEY == "your_newsapi_key_here":
-        print("⚠️  Using mock news data. Get a free API key from https://newsapi.org/ for real news.")
+        print("📡 DATA SOURCE: Mock Data (Demo)")
+        print("⚠️  Get a free API key from https://newsapi.org/ for real news.")
+    else:
+        print("📡 DATA SOURCE: NewsAPI (Live)")
+    print()
+    print("🚀 Starting News Agent with Chat...")
+    print("=" * 60)
     news_agent.run()

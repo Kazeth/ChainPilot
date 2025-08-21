@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
 Comprehensive AI Multi-Agent Crypto Trading System
-Sistem AI Multi-Agent untuk Signal Trading Crypto
 
 This script starts all agents in the comprehensive trading system:
 1. Technical Analysis Agent (RSI, MACD, Bollinger Bands)

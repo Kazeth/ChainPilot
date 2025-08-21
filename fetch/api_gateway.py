@@ -28,6 +28,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+HEADERS = {
+    "Content-Type": "application/json"
+}  # Simplified headers
+
 # API Services Configuration
 class BlockchainAPIService:
     """Base class for blockchain API services"""
@@ -1263,11 +1267,6 @@ async def query_icp_account_transactions(
 
 @app.get("/search-address/{address}")
 async def search_address(address: str, session_id: str = "default_session", currency: str = "BTC"):
-    """
-    Search for information about a cryptocurrency address
-    This endpoint combines data from multiple sources for a comprehensive view
-    """
-    # Determine if this is an ICP address or BTC address based on format or currency parameter
     is_icp = currency.upper() == "ICP"
     is_eth = currency.upper() == "ETH" or (address.startswith("0x") and len(address) == 42)
     

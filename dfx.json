@@ -1,0 +1,63 @@
+{
+  "canisters": {
+    "user_backend": {
+      "main": "backend/backend/User.mo",
+      "type": "motoko",
+      "declarations": {
+        "output": "frontend/src/declarations/user_backend"
+      }
+    },
+    "wallet_backend": {
+      "main": "backend/backend/Wallet.mo",
+      "type": "motoko",
+      "declarations": {
+        "output": "frontend/src/declarations/wallet_backend"
+      },
+      "dependencies": [
+        "marketData_backend"
+      ]
+    },
+    "trade_backend": {
+      "main": "backend/backend/Trade.mo",
+      "type": "motoko",
+      "declarations": {
+        "output": "frontend/src/declarations/trade_backend"
+      }
+    },
+    "marketData_backend": {
+      "main": "backend/backend/MarketData.mo",
+      "type": "motoko",
+      "declarations": {
+        "output": "frontend/src/declarations/marketdata_backend"
+      }
+    },
+    "transaction_backend": {
+      "main": "backend/backend/Transaction.mo",
+      "type": "motoko",
+      "declarations": {
+        "output": "frontend/src/declarations/transaction_backend"
+      }
+    },
+    "signal_backend": {
+      "main": "backend/backend/Signal.mo",
+      "type": "motoko",
+      "declarations": {
+        "output": "frontend/src/declarations/signal_backend"
+      }
+    },
+    "auditLog_backend": {
+      "main": "backend/backend/AuditLog.mo",
+      "type": "motoko",
+      "declarations": {
+        "output": "frontend/src/declarations/auditlog_backend"
+      }
+    }
+  },
+  "defaults": {
+    "build": {
+      "args": "",
+      "packtool": "mops sources"
+    }
+  },
+  "output_env_file": ".env"
+}

@@ -11,12 +11,12 @@ class EtherscanAPI:
     """Implementation using Etherscan API for Ethereum blockchain data"""
     
     # Base URL for Etherscan API (mainnet)
-    BASE_URL = "https://api.etherscan.io/api"
+    BASE_URL = "https://api.etherscan.io/v2/api"
     
     def __init__(self, api_key: Optional[str] = None):
         # Free API key with 5 calls per second rate limit
         # Get your own API key at https://etherscan.io/apis
-        self.api_key = api_key or "5IG6KKHDR5B81XUDQZAWYQEGCNRAFKIJ9A"
+        self.api_key = api_key or "MIWU92VZ2HJ6M3TNZNID871477URI8PJHG"
     
     def get_balance(self, address: str) -> Dict[str, Any]:
         """Get Ethereum account balance"""

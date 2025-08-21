@@ -211,47 +211,7 @@ driven by institutional adoption. Significant whale accumulation detected.
 ================================================================================
 ```
 
-## � Menghentikan Sistem / Stopping the System
-
-### Opsi 1: Menggunakan Script (Recommended)
-
-```bash
-# Hentikan semua agent sekaligus
-python kill_all_agents.py
-```
-
-### Opsi 2: Command Manual
-
-```bash
-# Hentikan berdasarkan nama proses
-pkill -f "technical_agent.py"
-pkill -f "news_agent.py" 
-pkill -f "whale_agent.py"
-pkill -f "enhanced_risk_manager_agent.py"
-pkill -f "comprehensive_signal_agent.py"
-pkill -f "comprehensive_user_agent.py"
-pkill -f "run_all_agents.py"
-
-# Atau hentikan berdasarkan port
-kill -9 $(lsof -ti:8001)  # Risk Manager
-kill -9 $(lsof -ti:8002)  # Signal Agent  
-kill -9 $(lsof -ti:8003)  # User Agent
-kill -9 $(lsof -ti:8004)  # Technical Agent
-kill -9 $(lsof -ti:8005)  # News Agent
-kill -9 $(lsof -ti:8006)  # Whale Agent
-kill -9 $(lsof -ti:8007)  # User Agent (alternative port)
-```
-
-### Opsi 3: Force Kill Semua Python Process
-
-```bash
-# ⚠️ HATI-HATI: Akan menghentikan SEMUA proses Python
-pkill -f python
-# atau
-killall python3
-```
-
-## �🔄 Alur Komunikasi Agent / Agent Communication Flow
+## 🔄 Alur Komunikasi Agent / Agent Communication Flow
 
 ```
 User Agent (8003)
@@ -399,15 +359,11 @@ cp config_template.py config.py
 # Run full system
 python run_all_agents.py
 
-# Stop all agents
-python kill_all_agents.py
-
 # Monitor specific pair only
 # Edit TRADING_PAIRS in config.py to ["BTCUSDT"]
 
-# Quick kill commands
-pkill -f "agent.py"              # Kill all agents
-kill -9 $(lsof -ti:8001-8007)    # Kill by port range
+# Stop system
+# Press Ctrl+C in terminal
 ```
 
 **Selamat trading! 🚀📈**

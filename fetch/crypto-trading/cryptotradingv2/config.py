@@ -1,24 +1,21 @@
 """
 Configuration Template for Comprehensive AI Multi-Agent Trading System
-Template Konfigurasi untuk Sistem AI Multi-Agent Trading
 
 Copy this file to 'config.py' and update with your settings.
-Salin file ini ke 'config.py' dan perbarui dengan pengaturan Anda.
 """
 
 # =============================================================================
-# API CONFIGURATION / KONFIGURASI API
+# API CONFIGURATION
+# =============================================================================
 # =============================================================================
 
 # NewsAPI Configuration (Optional - for live news data)
-# Konfigurasi NewsAPI (Opsional - untuk data berita langsung)
 NEWSAPI_CONFIG = {
     "api_key": "ea95d2a81cae42b38aabc1f0547df0a7",  # Get from: https://newsapi.org
     "enabled": True,  # Set to True when you have API key
 }
 
 # Whale Alert API Configuration (Optional - for live whale data)
-# Konfigurasi Whale Alert API (Opsional - untuk data whale langsung)
 WHALE_ALERT_CONFIG = {
     "api_key": "YOUR_WHALE_ALERT_KEY_HERE",  # Get from: https://whale-alert.io
     "enabled": False,  # Set to True when you have API key
@@ -29,7 +26,6 @@ WHALE_ALERT_CONFIG = {
 # =============================================================================
 
 # Trading pairs to monitor
-# Pasangan trading yang akan dimonitor
 TRADING_PAIRS = [
     "BTCUSDT",   # Bitcoin
     "ETHUSDT",   # Ethereum
@@ -39,11 +35,10 @@ TRADING_PAIRS = [
 ]
 
 # Signal generation interval (seconds)
-# Interval generasi sinyal (detik)
 SIGNAL_INTERVAL = 30  # 30 seconds
 
 # =============================================================================
-# TECHNICAL ANALYSIS SETTINGS / PENGATURAN ANALISIS TEKNIKAL
+# TECHNICAL ANALYSIS SETTINGS
 # =============================================================================
 
 TECHNICAL_SETTINGS = {
@@ -86,7 +81,7 @@ RISK_SETTINGS = {
 }
 
 # =============================================================================
-# SENTIMENT ANALYSIS SETTINGS / PENGATURAN ANALISIS SENTIMEN
+# SENTIMENT ANALYSIS SETTINGS
 # =============================================================================
 
 SENTIMENT_SETTINGS = {
@@ -107,7 +102,7 @@ SENTIMENT_SETTINGS = {
 }
 
 # =============================================================================
-# WHALE ANALYSIS SETTINGS / PENGATURAN ANALISIS WHALE
+# WHALE ANALYSIS SETTINGS
 # =============================================================================
 
 WHALE_SETTINGS = {
@@ -126,7 +121,7 @@ WHALE_SETTINGS = {
 }
 
 # =============================================================================
-# SIGNAL WEIGHTING / BOBOT SINYAL
+# SIGNAL WEIGHTING
 # =============================================================================
 
 SIGNAL_WEIGHTS = {
@@ -158,7 +153,6 @@ LOGGING_CONFIG = {
 # =============================================================================
 
 # Agent addresses - UPDATE THESE WITH ACTUAL ADDRESSES AFTER DEPLOYMENT
-# Alamat agent - PERBARUI INI DENGAN ALAMAT SEBENARNYA SETELAH DEPLOYMENT
 AGENT_ADDRESSES = {
     "technical_agent": "agent1qgn5e6pqta60x79jrlmhlqcajxykagyuzvsw28j25u3y7jpp3estktf0uy3",      # Update after deployment
     "news_agent": "agent1qtt84hk6njyd07z5t8xrhc076wjsd3x3mlqd9qaem8hjnkrg6enpz8h2gfq",          # Update after deployment

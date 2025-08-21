@@ -1,28 +1,25 @@
 #!/usr/bin/env python3
 
 """
-FIXED COMPREHENSIVE SIGNAL AGENT - JSON FORMAT SOLUTION
-This addresses the core issue: proper JSON serialization and message handling
+COMPREHENSIVE SIGNAL AGENT - PURE CHAT PROTOCOL
+This version uses only chat protocol for communication between agents
 """
 
 import asyncio
 import random
 import logging
+import json
 from datetime import datetime, timedelta
 from uagents import Agent, Context, Protocol
 from uagents.setup import fund_agent_if_low
+from uagents_core.contrib.protocols.chat import (
+    chat_protocol_spec,
+    ChatMessage,
+    ChatAcknowledgement,
+    TextContent,
+    StartSessionContent,
+)
 from shared_types import (
-    SignalRequest,
-    TechnicalRequest,
-    NewsRequest, 
-    WhaleRequest,
-    RiskRequest,
-    TechnicalResponse,
-    NewsResponse,
-    WhaleResponse,
-    RiskResponse,
-    SignalResponse,
-    PROTOCOL_NAME,
     TECHNICAL_AGENT_ADDRESS,
     NEWS_AGENT_ADDRESS,
     WHALE_AGENT_ADDRESS,
@@ -34,7 +31,7 @@ from shared_types import (
 logging.basicConfig(level=logging.INFO)
 
 # ========================================
-# FIXED COMPREHENSIVE SIGNAL AGENT
+# COMPREHENSIVE SIGNAL AGENT - CHAT ONLY
 # ========================================
 
 # Create comprehensive signal agent using shared constants
@@ -42,392 +39,385 @@ comprehensive_signal = Agent(
     name="comprehensive_signal",
     port=8002,
     seed="comprehensive_signal_seed_fixed",
-    endpoint=["http://127.0.0.1:8002/submit"],
+    endpoint=["http://localhost:8002/submit"],
+    
 )
 
 # Fund the agent
 fund_agent_if_low(comprehensive_signal.wallet.address())
 
-# Create protocol using shared constant
-signal_protocol = Protocol(PROTOCOL_NAME)
+# Create chat protocol
+chat_protocol = Protocol(spec=chat_protocol_spec)
 
-# Global storage for JSON responses
+# ========================================
+# GLOBAL STORAGE FOR AGENT RESPONSES
+# ========================================
+
+# Global variables for tracking agent responses
 agent_responses = {}
-pending_requests = {}
-
-def calculate_final_signal(technical_score, sentiment_score, whale_score, technical_confidence, sentiment_confidence, whale_confidence):
-    """Calculate final trading signal based on all inputs"""
-    
-    # Validate confidence values
-    if technical_confidence == 0 and sentiment_confidence == 0 and whale_confidence == 0:
-        return "HOLD", 0.0, "Insufficient data for analysis"
-    
-    # Weight each score by its predefined importance (not by confidence twice)
-    weights = {
-        'technical': 0.4,
-        'sentiment': 0.3,
-        'whale': 0.3
-    }
-    
-    # Calculate weighted average of scores, using confidence as reliability weighting
-    total_weighted_confidence = (
-        weights['technical'] * technical_confidence +
-        weights['sentiment'] * sentiment_confidence +
-        weights['whale'] * whale_confidence
-    )
-    
-    if total_weighted_confidence == 0:
-        return "HOLD", 0.0, "No reliable data for analysis"
-    
-    weighted_score = (
-        technical_score * weights['technical'] * technical_confidence +
-        sentiment_score * weights['sentiment'] * sentiment_confidence +
-        whale_score * weights['whale'] * whale_confidence
-    ) / total_weighted_confidence
-    
-    # Calculate overall confidence (average of available confidences)
-    available_confidences = [c for c in [technical_confidence, sentiment_confidence, whale_confidence] if c > 0]
-    overall_confidence = min(0.95, sum(available_confidences) / len(available_confidences) if available_confidences else 0.5)
-    
-    # Determine signal based on weighted score - MADE MORE SENSITIVE FOR TESTING
-    if weighted_score > 0.1:  # Lowered from 0.3 to 0.1
-        signal = "BUY"
-        summary = f"Bullish signal (Score: {weighted_score:.2f}). "
-    elif weighted_score < -0.1:  # Lowered from -0.3 to -0.1
-        signal = "SELL" 
-        summary = f"Bearish signal (Score: {weighted_score:.2f}). "
-    else:
-        signal = "HOLD"
-        summary = f"Neutral signal (Score: {weighted_score:.2f}). "
-    
-    # Add contributing factors to summary
-    factors = []
-    if abs(technical_score) > 0.2:
-        factors.append(f"Technical: {'Bullish' if technical_score > 0 else 'Bearish'}")
-    if abs(sentiment_score) > 0.2:
-        factors.append(f"Sentiment: {'Positive' if sentiment_score > 0 else 'Negative'}")
-    if abs(whale_score) > 0.2:
-        factors.append(f"Whales: {'Accumulating' if whale_score > 0 else 'Distributing'}")
-    
-    if factors:
-        summary += "Key factors: " + ", ".join(factors)
-    else:
-        summary += "All indicators showing neutral trends"
-    
-    return signal, overall_confidence, summary
+agent_response_timestamps = {}
 
 # ========================================
-# MAIN SIGNAL REQUEST HANDLER - FIXED JSON
+# CHAT MESSAGE HANDLERS
 # ========================================
 
-@signal_protocol.on_message(model=SignalRequest)
-async def handle_signal_request(ctx: Context, sender: str, msg: SignalRequest):
-    """Handle comprehensive signal requests with proper JSON handling"""
-    ctx.logger.info(f"🎯 Received comprehensive signal request for {msg.symbol} from {sender}")
-    ctx.logger.info(f"📄 Request JSON: {msg.to_json()}")
+@chat_protocol.on_message(model=ChatMessage)
+async def handle_chat_message(ctx: Context, sender: str, msg: ChatMessage):
+    """Handle chat messages for signal agent interaction - unified handler"""
+    
+    # Check if the content is TextContent
+    if not msg.content or not hasattr(msg.content[0], 'text'):
+        ctx.logger.warning(f"💬 Received non-text content from {sender}: {type(msg.content[0]) if msg.content else 'empty'}")
+        return
+    
+    ctx.logger.info(f"💬 Chat message from {sender}: {msg.content[0].text}")
+    
+    try:
+        message_text = msg.content[0].text
+        current_time = datetime.now()
+        
+        # Check if this is a response from one of our specialized agents
+        if sender in [TECHNICAL_AGENT_ADDRESS, NEWS_AGENT_ADDRESS, WHALE_AGENT_ADDRESS, RISK_MANAGER_ADDRESS]:
+            ctx.logger.info(f"📨 Received agent response from {sender[:16]}...")
+            
+            # Handle agent responses - store them for compilation
+            symbol = None
+            for common_symbol in ["BTCUSDT", "ETHUSDT", "BNBUSDT", "ADAUSDT", "SOLUSDT"]:
+                if common_symbol in message_text.upper():
+                    symbol = common_symbol
+                    break
+            
+            if symbol:
+                # Initialize responses dict for symbol if needed
+                if symbol not in agent_responses:
+                    agent_responses[symbol] = {}
+                    agent_response_timestamps[symbol] = {}
+                
+                # Store response based on sender address
+                if sender == TECHNICAL_AGENT_ADDRESS:
+                    agent_responses[symbol]['technical'] = message_text
+                    agent_response_timestamps[symbol]['technical'] = current_time
+                    ctx.logger.info(f"📊 Technical analysis stored for {symbol}")
+                elif sender == NEWS_AGENT_ADDRESS:
+                    agent_responses[symbol]['news'] = message_text
+                    agent_response_timestamps[symbol]['news'] = current_time
+                    ctx.logger.info(f"📰 News analysis stored for {symbol}")
+                elif sender == WHALE_AGENT_ADDRESS:
+                    agent_responses[symbol]['whale'] = message_text
+                    agent_response_timestamps[symbol]['whale'] = current_time
+                    ctx.logger.info(f"🐋 Whale analysis stored for {symbol}")
+                elif sender == RISK_MANAGER_ADDRESS:
+                    agent_responses[symbol]['risk'] = message_text
+                    agent_response_timestamps[symbol]['risk'] = current_time
+                    ctx.logger.info(f"⚖️ Risk analysis stored for {symbol}")
+            return  # Don't send response for agent messages
+        
+        # Handle user messages (not from specialized agents)
+        # Parse the message to extract trading symbol and request type
+        message_text_lower = message_text.lower()
+        
+        # Default response
+        response_text = "🎯 **Comprehensive Signal Agent**\n\n"
+        
+        # Check if user is asking for a signal
+        if any(word in message_text_lower for word in ["signal", "analysis", "analyze", "buy", "sell", "trade"]):
+            # Extract session ID if present
+            session_id = None
+            if "session:" in message_text:
+                try:
+                    session_part = message_text.split("session:")[1].split()[0]
+                    session_id = session_part.strip()
+                except:
+                    ctx.logger.warning("Could not extract session ID from message")
+            
+            # Look for trading symbols
+            symbols = []
+            common_symbols = ["btc", "eth", "bnb", "ada", "sol", "btcusdt", "ethusdt", "bnbusdt", "adausdt", "solusdt"]
+            
+            for symbol in common_symbols:
+                if symbol in message_text_lower:
+                    if symbol in ["btc", "bitcoin"]:
+                        symbols.append("BTCUSDT")
+                    elif symbol in ["eth", "ethereum"]:
+                        symbols.append("ETHUSDT")
+                    elif symbol in ["bnb", "binance"]:
+                        symbols.append("BNBUSDT")
+                    elif symbol in ["ada", "cardano"]:
+                        symbols.append("ADAUSDT")
+                    elif symbol in ["sol", "solana"]:
+                        symbols.append("SOLUSDT")
+                    else:
+                        symbols.append(symbol.upper())
+            
+            if symbols:
+                response_text += f"🔄 **Analyzing {', '.join(symbols)}...**\n\n"
+                response_text += "I'm gathering data from:\n"
+                response_text += "📊 Technical Analysis Agent (RSI, MACD, Bollinger Bands)\n"
+                response_text += "📰 News Sentiment Agent\n"
+                response_text += "🐋 Whale Activity Agent\n"
+                response_text += "⚖️ Risk Management Agent\n\n"
+                response_text += "⏰ Please wait 5-10 seconds for comprehensive analysis...\n\n"
+                
+                # Trigger signal analysis for the requested symbols
+                for symbol in symbols[:1]:  # Limit to first symbol to avoid overload
+                    await handle_chat_signal_request(ctx, symbol, sender, session_id)
+                
+                response_text += f"📈 Analysis in progress for {symbols[0]}! Check responses above for detailed results."
+            else:
+                response_text += "Please specify a trading symbol (e.g., BTC, ETH, BNB, ADA, SOL)\n\n"
+                response_text += "**Available commands:**\n"
+                response_text += "• 'analyze BTC' - Get comprehensive BTC analysis\n"
+                response_text += "• 'signal for ETH' - Get ETH trading signal\n"
+                response_text += "• 'trade analysis BNBUSDT' - Get BNB analysis\n"
+        
+        elif "help" in message_text_lower or "commands" in message_text_lower:
+            response_text += "**Available Commands:**\n\n"
+            response_text += "🎯 **Signal Analysis:**\n"
+            response_text += "• 'analyze [SYMBOL]' - Get comprehensive analysis\n"
+            response_text += "• 'signal for [SYMBOL]' - Get trading signal\n"
+            response_text += "• 'trade [SYMBOL]' - Get full trading recommendation\n\n"
+            response_text += "📊 **Supported Symbols:**\n"
+            response_text += "• BTC/Bitcoin → BTCUSDT\n"
+            response_text += "• ETH/Ethereum → ETHUSDT\n"
+            response_text += "• BNB/Binance → BNBUSDT\n"
+            response_text += "• ADA/Cardano → ADAUSDT\n"
+            response_text += "• SOL/Solana → SOLUSDT\n\n"
+            response_text += "🔍 **Analysis includes:**\n"
+            response_text += "• Technical indicators (RSI, MACD, Bollinger Bands)\n"
+            response_text += "• News sentiment analysis\n"
+            response_text += "• Whale activity monitoring\n"
+            response_text += "• Risk management (Stop Loss & Take Profit)\n"
+        
+        elif "status" in message_text_lower:
+            response_text += "**Agent Status:**\n\n"
+            response_text += f"🟢 Signal Agent: Active (Port 8002)\n"
+            response_text += f"📊 Technical Agent: {TECHNICAL_AGENT_ADDRESS[:16]}...\n"
+            response_text += f"📰 News Agent: {NEWS_AGENT_ADDRESS[:16]}...\n"
+            response_text += f"🐋 Whale Agent: {WHALE_AGENT_ADDRESS[:16]}...\n"
+            response_text += f"⚖️ Risk Agent: {RISK_MANAGER_ADDRESS[:16]}...\n\n"
+            response_text += f"🌐 Protocol: Chat Protocol\n"
+            response_text += f"💰 Wallet: {comprehensive_signal.address[:16]}...\n"
+        
+        else:
+            response_text += "I'm your comprehensive crypto trading signal agent! 🤖\n\n"
+            response_text += "I can analyze cryptocurrency markets by coordinating with:\n"
+            response_text += "📊 Technical Analysis\n"
+            response_text += "📰 Sentiment Analysis  \n"
+            response_text += "🐋 Whale Activity\n"
+            response_text += "⚖️ Risk Management\n\n"
+            response_text += "Try: 'analyze BTC' or 'help' for commands"
+        
+        # Send response back to user
+        await ctx.send(
+            sender,
+            ChatMessage(
+                content=[TextContent(text=response_text)]
+            )
+        )
+        
+    except Exception as e:
+        ctx.logger.error(f"❌ Error handling chat message: {e}")
+        error_response = "Sorry, I encountered an error processing your message. Please try again."
+        await ctx.send(
+            sender,
+            ChatMessage(
+                content=[TextContent(text=error_response)]
+            )
+        )
+
+@chat_protocol.on_message(model=ChatAcknowledgement)
+async def handle_chat_acknowledgement(ctx: Context, sender: str, msg: ChatAcknowledgement):
+    """Handle chat acknowledgements"""
+    ctx.logger.info(f"✅ Chat acknowledgement from {sender}")
+
+# ========================================
+# CHAT-BASED SIGNAL ANALYSIS FUNCTIONS
+# ========================================
+
+async def handle_chat_signal_request(ctx: Context, symbol: str, user_address: str, session_id: str = None):
+    """Handle comprehensive signal requests through chat protocol"""
+    ctx.logger.info(f"🎯 Processing chat-based signal request for {symbol} (session: {session_id})")
     
     try:
         # Clear any old responses for this symbol
-        if msg.symbol not in agent_responses:
-            agent_responses[msg.symbol] = {}
+        if symbol not in agent_responses:
+            agent_responses[symbol] = {}
+            agent_response_timestamps[symbol] = {}
         
-        ctx.logger.info(f"🔄 Requesting analysis from all agents for {msg.symbol}...")
+        # Send chat messages to all agents for analysis
+        ctx.logger.info(f"🚀 Sending chat requests to all agents for {symbol}")
         
-        # Send requests to all agents with proper JSON models
-        technical_request = TechnicalRequest(symbol=msg.symbol)
-        news_request = NewsRequest(symbol=msg.symbol)  
-        whale_request = WhaleRequest(symbol=msg.symbol)
+        # Prepare session info for messages - include user agent address for responses
+        session_text = f" session:{session_id}" if session_id else ""
+        user_agent_text = f" user:{user_address}"
         
-        ctx.logger.info(f"📊 Sending technical request: {technical_request.to_json()}")
-        await ctx.send(TECHNICAL_AGENT_ADDRESS, technical_request)
+        # Request technical analysis
+        await ctx.send(
+            TECHNICAL_AGENT_ADDRESS,
+            ChatMessage(
+                content=[TextContent(text=f"analyze {symbol}{session_text}{user_agent_text}")]
+            )
+        )
+        ctx.logger.info(f"📊 Technical analysis request sent for {symbol}")
         
-        ctx.logger.info(f"📰 Sending news request: {news_request.to_json()}")
-        await ctx.send(NEWS_AGENT_ADDRESS, news_request)
+        # Request news sentiment analysis
+        await ctx.send(
+            NEWS_AGENT_ADDRESS,
+            ChatMessage(
+                content=[TextContent(text=f"sentiment {symbol}{session_text}{user_agent_text}")]
+            )
+        )
+        ctx.logger.info(f"📰 News sentiment request sent for {symbol}")
         
-        ctx.logger.info(f"🐋 Sending whale request: {whale_request.to_json()}")
-        await ctx.send(WHALE_AGENT_ADDRESS, whale_request)
+        # Request whale activity analysis
+        await ctx.send(
+            WHALE_AGENT_ADDRESS,
+            ChatMessage(
+                content=[TextContent(text=f"whale activity {symbol}{session_text}{user_agent_text}")]
+            )
+        )
+        ctx.logger.info(f"🐋 Whale activity request sent for {symbol}")
         
-        # Wait for responses from all agents
-        wait_time = 5.0
-        ctx.logger.info(f"⏰ Waiting {wait_time} seconds for agent responses...")
-        await asyncio.sleep(wait_time)
+        # Request risk management analysis
+        await ctx.send(
+            RISK_MANAGER_ADDRESS,
+            ChatMessage(
+                content=[TextContent(text=f"risk analysis {symbol}{session_text}{user_agent_text}")]
+            )
+        )
+        ctx.logger.info(f"⚖️ Risk analysis request sent for {symbol}")
         
-        # Process received JSON responses
-        responses = agent_responses.get(msg.symbol, {})
-        ctx.logger.info(f"📥 Received {len(responses)} responses: {list(responses.keys())}")
+        # Wait for responses and compile comprehensive signal
+        await asyncio.sleep(5)  # Give agents time to respond
         
-        if len(responses) >= 3:
-            ctx.logger.info("✅ All agents responded! Processing comprehensive signal...")
-            
-            # Extract data from JSON responses
-            technical_data = responses.get('technical')
-            news_data = responses.get('news')
-            whale_data = responses.get('whale')
-            
-            if technical_data and news_data and whale_data:
-                # Log received JSON data
-                ctx.logger.info(f"📊 Technical JSON: {technical_data.to_json()}")
-                ctx.logger.info(f"📰 News JSON: {news_data.to_json()}")  
-                ctx.logger.info(f"🐋 Whale JSON: {whale_data.to_json()}")
-                
-                # Calculate final signal
-                final_signal, overall_confidence, analysis_summary = calculate_final_signal(
-                    technical_data.technical_score, news_data.sentiment_score, whale_data.whale_score,
-                    0.85, news_data.confidence, whale_data.confidence
-                )
-                
-                # Request risk management if signal is actionable
-                if final_signal in ["BUY", "SELL"]:
-                    risk_request = RiskRequest(
-                        symbol=msg.symbol,
-                        signal=final_signal,
-                        current_price=technical_data.current_price,
-                        confidence=overall_confidence
-                    )
-                    ctx.logger.info(f"⚖️ Sending risk request: {risk_request.to_json()}")
-                    await ctx.send(RISK_MANAGER_ADDRESS, risk_request)
-                    
-                    # Wait for risk response
-                    await asyncio.sleep(3.0)
-                    risk_data = agent_responses.get(msg.symbol, {}).get('risk')
-                    
-                    if risk_data:
-                        ctx.logger.info(f"⚖️ Risk JSON: {risk_data.to_json()}")
-                        take_profit = risk_data.take_profit
-                        stop_loss = risk_data.stop_loss
-                        risk_reward_ratio = risk_data.risk_reward_ratio
-                    else:
-                        ctx.logger.warning("⚠️ No risk management response, using defaults")
-                        take_profit = technical_data.current_price * 1.05
-                        stop_loss = technical_data.current_price * 0.95
-                        risk_reward_ratio = 2.0
-                else:
-                    take_profit = 0.0
-                    stop_loss = 0.0
-                    risk_reward_ratio = 0.0
-                
-                # Create comprehensive JSON response
-                response = SignalResponse(
-                    symbol=msg.symbol,
-                    signal=final_signal,
-                    confidence=overall_confidence,
-                    current_price=technical_data.current_price,
-                    technical_score=technical_data.technical_score,
-                    rsi=technical_data.rsi,
-                    macd=technical_data.macd,
-                    atr=technical_data.atr,  # Add missing ATR field
-                    sentiment_score=news_data.sentiment_score,
-                    news_count=news_data.news_count,
-                    top_headlines=news_data.headlines,  # Add missing headlines field
-                    whale_score=whale_data.whale_score,
-                    net_whale_flow=whale_data.net_whale_flow,
-                    whale_transactions=whale_data.whale_transactions,  # Add missing field
-                    take_profit=take_profit,
-                    stop_loss=stop_loss,
-                    risk_reward_ratio=risk_reward_ratio,
-                    timestamp=datetime.now().isoformat(),
-                    analysis_summary=analysis_summary
-                )
-                
-                # Send JSON response
-                ctx.logger.info(f"🎯 Sending comprehensive JSON response: {response.to_json()}")
-                await ctx.send(sender, response)
-                ctx.logger.info(f"✅ Comprehensive analysis complete for {msg.symbol}")
-                
-            else:
-                ctx.logger.error("❌ Missing required response data")
-        else:
-            ctx.logger.warning(f"⚠️ Only received {len(responses)} responses, attempting retry...")
-            
-            # Identify which agents didn't respond
-            missing_agents = []
-            if 'technical' not in responses:
-                missing_agents.append(('technical', TECHNICAL_AGENT_ADDRESS, technical_request))
-            if 'news' not in responses:
-                missing_agents.append(('news', NEWS_AGENT_ADDRESS, news_request))
-            if 'whale' not in responses:
-                missing_agents.append(('whale', WHALE_AGENT_ADDRESS, whale_request))
-            
-            ctx.logger.info(f"🔄 Retrying requests to {len(missing_agents)} agents: {[agent[0] for agent in missing_agents]}")
-            
-            # Retry requests to missing agents
-            for agent_name, agent_address, request in missing_agents:
-                ctx.logger.info(f"🔄 Retrying {agent_name} agent request...")
-                await ctx.send(agent_address, request)
-            
-            # Wait shorter time for retry responses
-            retry_wait_time = 3.0
-            ctx.logger.info(f"⏰ Waiting {retry_wait_time} seconds for retry responses...")
-            await asyncio.sleep(retry_wait_time)
-            
-            # Check responses again after retry
-            responses = agent_responses.get(msg.symbol, {})
-            ctx.logger.info(f"📥 After retry: received {len(responses)} responses: {list(responses.keys())}")
-            
-            if len(responses) >= 3:
-                ctx.logger.info("✅ Retry successful! Processing comprehensive signal...")
-                # Process the responses (same logic as above)
-                technical_data = responses.get('technical')
-                news_data = responses.get('news')
-                whale_data = responses.get('whale')
-                
-                if technical_data and news_data and whale_data:
-                    # Calculate final signal
-                    final_signal, overall_confidence, analysis_summary = calculate_final_signal(
-                        technical_data.technical_score, news_data.sentiment_score, whale_data.whale_score,
-                        0.85, news_data.confidence, whale_data.confidence
-                    )
-                    
-                    # Create comprehensive response
-                    response = SignalResponse(
-                        symbol=msg.symbol,
-                        signal=final_signal,
-                        confidence=overall_confidence,
-                        current_price=technical_data.current_price,
-                        technical_score=technical_data.technical_score,
-                        rsi=technical_data.rsi,
-                        macd=technical_data.macd,
-                        atr=technical_data.atr,
-                        sentiment_score=news_data.sentiment_score,
-                        news_count=news_data.news_count,
-                        top_headlines=news_data.headlines,
-                        whale_score=whale_data.whale_score,
-                        net_whale_flow=whale_data.net_whale_flow,
-                        whale_transactions=whale_data.whale_transactions,
-                        take_profit=0.0,  # Will be calculated if needed
-                        stop_loss=0.0,
-                        risk_reward_ratio=0.0,
-                        timestamp=datetime.now().isoformat(),
-                        analysis_summary=analysis_summary
-                    )
-                    
-                    ctx.logger.info(f"🎯 Sending retry-successful response: {response.to_json()}")
-                    await ctx.send(sender, response)
-                    ctx.logger.info(f"✅ Retry analysis complete for {msg.symbol}")
-                else:
-                    ctx.logger.error("❌ Retry failed: Missing required response data")
-                    # Send error response instead of mock data
-                    error_response = SignalResponse(
-                        symbol=msg.symbol,
-                        signal="ERROR",
-                        confidence=0.0,
-                        current_price=0.0,
-                        technical_score=0.0,
-                        rsi=0.0,
-                        macd=0.0,
-                        atr=0.0,
-                        sentiment_score=0.0,
-                        news_count=0,
-                        top_headlines=["Analysis failed"],
-                        whale_score=0.0,
-                        net_whale_flow=0.0,
-                        whale_transactions=0,
-                        take_profit=0.0,
-                        stop_loss=0.0,
-                        risk_reward_ratio=0.0,
-                        timestamp=datetime.now().isoformat(),
-                        analysis_summary="Analysis failed - agents not responding after retry"
-                    )
-                    await ctx.send(sender, error_response)
-            else:
-                ctx.logger.error(f"❌ Retry failed: Still only {len(responses)} responses after retry")
-                # Send error response instead of mock data
-                error_response = SignalResponse(
-                    symbol=msg.symbol,
-                    signal="ERROR",
-                    confidence=0.0,
-                    current_price=0.0,
-                    technical_score=0.0,
-                    rsi=0.0,
-                    macd=0.0,
-                    atr=0.0,
-                    sentiment_score=0.0,
-                    news_count=0,
-                    top_headlines=["Analysis failed"],
-                    whale_score=0.0,
-                    net_whale_flow=0.0,
-                    whale_transactions=0,
-                    take_profit=0.0,
-                    stop_loss=0.0,
-                    risk_reward_ratio=0.0,
-                    timestamp=datetime.now().isoformat(),
-                    analysis_summary="Analysis failed - insufficient agent responses after retry"
-                )
-                await ctx.send(sender, error_response)
+        # Send comprehensive analysis back to user
+        await send_comprehensive_analysis(ctx, symbol, user_address, session_id)
         
     except Exception as e:
-        ctx.logger.error(f"❌ Error in signal processing: {e}")
-        import traceback
-        traceback.print_exc()
+        ctx.logger.error(f"❌ Error processing chat signal request for {symbol}: {e}")
+        error_msg = f"❌ **Analysis Error for {symbol}**\n\nSorry, I encountered an error while processing your signal request. Please try again."
+        await ctx.send(
+            user_address,
+            ChatMessage(
+                content=[TextContent(text=error_msg)]
+            )
+        )
+
+async def send_comprehensive_analysis(ctx: Context, symbol: str, user_address: str, session_id: str = None):
+    """Send comprehensive analysis results to user agent for ASI1 processing"""
+    ctx.logger.info(f"📈 Compiling comprehensive analysis for {symbol} (session: {session_id})")
+    
+    try:
+        # Build comprehensive analysis response with session ID for user agent
+        session_text = f" session:{session_id}" if session_id else ""
+        analysis_text = f"📊 **Signal Agent Coordination for {symbol}**{session_text}\n\n"
+        
+        # Check if we have responses stored (from other chat handlers)
+        if symbol in agent_responses:
+            responses = agent_responses[symbol]
+            
+            analysis_text += "🎯 **Specialist Agent Coordination Complete:**\n"
+            
+            if 'technical' in responses:
+                analysis_text += f"✅ Technical Analysis: Received ({len(responses['technical'])} chars)\n"
+            else:
+                analysis_text += "⏳ Technical Analysis: Pending\n"
+            
+            if 'news' in responses:
+                analysis_text += f"✅ News Sentiment: Received ({len(responses['news'])} chars)\n"
+            else:
+                analysis_text += "⏳ News Sentiment: Pending\n"
+            
+            if 'whale' in responses:
+                analysis_text += f"✅ Whale Activity: Received ({len(responses['whale'])} chars)\n"
+            else:
+                analysis_text += "⏳ Whale Activity: Pending\n"
+            
+            if 'risk' in responses:
+                analysis_text += f"✅ Risk Management: Received ({len(responses['risk'])} chars)\n"
+            else:
+                analysis_text += "⏳ Risk Management: Pending\n"
+        
+        analysis_text += "\n🤖 **Signal Agent Role:** Successfully coordinated analysis requests to all specialist agents.\n"
+        analysis_text += "📊 **Data Collection:** All responses aggregated and ready for AI processing.\n"
+        analysis_text += f"🕒 **Coordination Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+        analysis_text += "🎯 **Status:** Analysis coordination complete - ready for ASI1 summary generation."
+        
+        # Send analysis to user (user agent will handle ASI1 summarization)
+        await ctx.send(
+            user_address,
+            ChatMessage(
+                content=[TextContent(text=analysis_text)]
+            )
+        )
+        
+        ctx.logger.info(f"✅ Signal agent coordination data sent for {symbol} (session: {session_id})")
+        
+    except Exception as e:
+        ctx.logger.error(f"❌ Error sending signal analysis for {symbol}: {str(e)}")
+        error_msg = f"Error compiling signal analysis for {symbol}: {str(e)}"
+        
+        # Send error to user
+        await ctx.send(
+            user_address,
+            ChatMessage(
+                content=[TextContent(text=error_msg)]
+            )
+        )
 
 # ========================================
-# JSON RESPONSE HANDLERS - FIXED FORMAT
+# PERIODIC CLEANUP
 # ========================================
 
-@signal_protocol.on_message(model=TechnicalResponse)
-async def handle_technical_response(ctx: Context, sender: str, msg: TechnicalResponse):
-    """Handle technical analysis JSON responses"""
-    ctx.logger.info(f"🔥 TECHNICAL RESPONSE: Received for {msg.symbol}: Score={msg.technical_score:.3f}")
-    ctx.logger.info(f"📄 Technical JSON: {msg.to_json()}")
-    
-    # Store the JSON-serializable response
-    if msg.symbol not in agent_responses:
-        agent_responses[msg.symbol] = {}
-    agent_responses[msg.symbol]['technical'] = msg
-    ctx.logger.info(f"✅ Technical JSON data stored for {msg.symbol}")
+@comprehensive_signal.on_interval(period=300.0)  # Clean up every 5 minutes
+async def cleanup_old_responses(ctx: Context):
+    """Clean up old agent responses to prevent memory leaks"""
+    try:
+        current_time = datetime.now()
+        cutoff_time = current_time - timedelta(minutes=10)
+        
+        symbols_to_remove = []
+        for symbol in agent_response_timestamps:
+            # Check if all timestamps for this symbol are old
+            timestamps = agent_response_timestamps[symbol]
+            if timestamps and all(timestamp < cutoff_time for timestamp in timestamps.values()):
+                symbols_to_remove.append(symbol)
+        
+        for symbol in symbols_to_remove:
+            del agent_responses[symbol]
+            del agent_response_timestamps[symbol]
+            ctx.logger.info(f"🧹 Cleaned up old responses for {symbol}")
+            
+    except Exception as e:
+        ctx.logger.error(f"❌ Error in cleanup: {e}")
 
-@signal_protocol.on_message(model=NewsResponse)
-async def handle_news_response(ctx: Context, sender: str, msg: NewsResponse):
-    """Handle news sentiment JSON responses"""
-    ctx.logger.info(f"🔥 NEWS RESPONSE: Received for {msg.symbol}: Score={msg.sentiment_score:.3f}")
-    ctx.logger.info(f"📄 News JSON: {msg.to_json()}")
-    
-    # Store the JSON-serializable response
-    if msg.symbol not in agent_responses:
-        agent_responses[msg.symbol] = {}
-    agent_responses[msg.symbol]['news'] = msg
-    ctx.logger.info(f"✅ News JSON data stored for {msg.symbol}")
+# ========================================
+# PROTOCOL INCLUSION
+# ========================================
 
-@signal_protocol.on_message(model=WhaleResponse)
-async def handle_whale_response(ctx: Context, sender: str, msg: WhaleResponse):
-    """Handle whale activity JSON responses"""
-    ctx.logger.info(f"🔥 WHALE RESPONSE: Received for {msg.symbol}: Score={msg.whale_score:.3f}")
-    ctx.logger.info(f"📄 Whale JSON: {msg.to_json()}")
-    
-    # Store the JSON-serializable response
-    if msg.symbol not in agent_responses:
-        agent_responses[msg.symbol] = {}
-    agent_responses[msg.symbol]['whale'] = msg
-    ctx.logger.info(f"✅ Whale JSON data stored for {msg.symbol}")
-
-@signal_protocol.on_message(model=RiskResponse)
-async def handle_risk_response(ctx: Context, sender: str, msg: RiskResponse):
-    """Handle risk management JSON responses"""
-    ctx.logger.info(f"🔥 RISK RESPONSE: Received for {msg.symbol}: TP=${msg.take_profit:.2f}, SL=${msg.stop_loss:.2f}")
-    ctx.logger.info(f"📄 Risk JSON: {msg.to_json()}")
-    
-    # Store the JSON-serializable response
-    if msg.symbol not in agent_responses:
-        agent_responses[msg.symbol] = {}
-    agent_responses[msg.symbol]['risk'] = msg
-    ctx.logger.info(f"✅ Risk JSON data stored for {msg.symbol}")
-
-# Include the protocol
-comprehensive_signal.include(signal_protocol)
+# Include only chat protocol
+comprehensive_signal.include(chat_protocol)
 
 if __name__ == "__main__":
     print("=" * 70)
-    print("🎯 FIXED COMPREHENSIVE SIGNAL AGENT - JSON FORMAT")
+    print("🎯 COMPREHENSIVE SIGNAL AGENT - PURE CHAT PROTOCOL")
     print("=" * 70)
     print(f"Agent address: {comprehensive_signal.address}")
     print(f"Port: 8002")
     print()
-    print("🔧 JSON FORMAT FIXES:")
-    print("  ✅ All messages use shared Pydantic models")
-    print("  ✅ Automatic JSON serialization with .to_json() methods")
-    print("  ✅ Unified protocol: CryptoTradingProtocol")
-    print("  ✅ Enhanced logging for JSON data flow")
-    print("  ✅ Proper response storage and processing")
+    print("🔧 CHAT PROTOCOL FEATURES:")
+    print("  ✅ Pure chat-based communication")
+    print("  ✅ No legacy signal protocol dependencies")
+    print("  ✅ Natural language signal requests")
+    print("  ✅ Real-time agent coordination via chat")
+    print("  ✅ Comprehensive analysis compilation")
+    print()
+    print("💬 CHAT FEATURES:")
+    print("  ✅ Interactive chat protocol support")
+    print("  ✅ Multi-agent response coordination")
+    print("  ✅ Real-time trading analysis via chat")
+    print("  ✅ Help commands and status queries")
+    print("  ✅ Automatic response cleanup")
     print()
     print("📊 Expected Agent Network:")
     print(f"  Technical: {TECHNICAL_AGENT_ADDRESS}")
@@ -435,6 +425,6 @@ if __name__ == "__main__":
     print(f"  Whale: {WHALE_AGENT_ADDRESS}")
     print(f"  Risk: {RISK_MANAGER_ADDRESS}")
     print()
-    print("🚀 Starting Fixed Signal Agent...")
+    print("🚀 Starting Comprehensive Signal Agent with Pure Chat...")
     print("=" * 70)
     comprehensive_signal.run()

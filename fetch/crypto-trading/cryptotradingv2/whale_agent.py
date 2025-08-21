@@ -1,5 +1,12 @@
 from uagents import Agent, Context, Protocol
 from uagents.setup import fund_agent_if_low
+from uagents_core.contrib.protocols.chat import (
+    chat_protocol_spec,
+    ChatMessage,
+    ChatAcknowledgement,
+    TextContent,
+    StartSessionContent,
+)
 from shared_types import (
     WhaleRequest, 
     WhaleResponse, 
@@ -19,7 +26,8 @@ whale_agent = Agent(
     name="whale_agent",
     port=8006,
     endpoint=["http://localhost:8006/submit"],
-    seed="whale_agent_seed_phrase"
+    seed="whale_agent_seed_phrase",
+    mailbox=True  # Enable mailbox for chat functionality
 )
 
 # Fund the agent if balance is low
@@ -27,6 +35,9 @@ fund_agent_if_low(whale_agent.wallet.address())
 
 # Define protocol using shared constant
 whale_protocol = Protocol(PROTOCOL_NAME)
+
+# Create chat protocol
+chat_protocol = Protocol(spec=chat_protocol_spec)
 
 # API configuration
 WHALE_ALERT_API_KEY = "your_whale_alert_api_key"  # Get from https://whale-alert.io/
@@ -213,12 +224,218 @@ async def handle_whale_request(ctx: Context, sender: str, msg: WhaleRequest):
         ctx.logger.info(f"📤 Sending error JSON response: {error_response.to_json()}")
         await ctx.send(sender, error_response)
 
-# Include the protocol
+# ========================================
+# CHAT PROTOCOL HANDLERS
+# ========================================
+
+@chat_protocol.on_message(model=ChatMessage)
+async def handle_chat_message(ctx: Context, sender: str, msg: ChatMessage):
+    """Handle chat messages for whale activity analysis"""
+    ctx.logger.info(f"💬 Chat message from {sender}: {msg.content[0].text}")
+    
+    try:
+        message_text = msg.content[0].text.lower()
+        
+        # Extract session ID and user agent address if present
+        session_id = None
+        user_agent_address = None
+        if "session:" in message_text:
+            try:
+                session_part = message_text.split("session:")[1].split()[0]
+                session_id = session_part.strip()
+                ctx.logger.info(f"� Whale analysis requested for session: {session_id}")
+            except:
+                ctx.logger.warning("Could not extract session ID from message")
+        
+        if "user:" in message_text:
+            try:
+                user_part = message_text.split("user:")[1].split()[0]
+                user_agent_address = user_part.strip()
+                ctx.logger.info(f"🐋 Will send response to user agent: {user_agent_address[:16]}...")
+            except:
+                ctx.logger.warning("Could not extract user agent address from message")
+        
+        response_text = "🐋 **Whale Activity Agent**\n\n"
+        
+        # Check if user is asking for whale analysis
+        if any(word in message_text for word in ["whale", "activity", "transactions", "flow", "analyze"]):
+            # Look for trading symbols
+            symbols = []
+            common_symbols = ["btc", "eth", "bnb", "ada", "sol", "btcusdt", "ethusdt", "bnbusdt", "adausdt", "solusdt"]
+            
+            for symbol in common_symbols:
+                if symbol in message_text:  # Already lowercase from above
+                    if symbol in ["btc", "bitcoin"]:
+                        symbols.append("BTCUSDT")
+                    elif symbol in ["eth", "ethereum"]:
+                        symbols.append("ETHUSDT")
+                    elif symbol in ["bnb", "binance"]:
+                        symbols.append("BNBUSDT")
+                    elif symbol in ["ada", "cardano"]:
+                        symbols.append("ADAUSDT")
+                    elif symbol in ["sol", "solana"]:
+                        symbols.append("SOLUSDT")
+                    else:
+                        symbols.append(symbol.upper())
+            
+            if symbols:
+                response_text += f"🔄 **Analyzing {', '.join(symbols)} whale activity...**\n\n"
+                
+                # Perform whale analysis for the first symbol
+                symbol = symbols[0]
+                try:
+                    # Get whale transactions
+                    transactions = get_whale_transactions(symbol)
+                    
+                    # Analyze whale activity
+                    whale_score, large_transactions, exchange_inflow, exchange_outflow, net_flow, confidence = analyze_whale_activity(transactions)
+                    
+                    # Format response
+                    response_text += f"🐋 **{symbol} Whale Activity Analysis:**\n\n"
+                    response_text += f"📊 Whale Score: {whale_score:.3f}\n"
+                    response_text += f"📈 Large Transactions: {large_transactions}\n"
+                    response_text += f"💰 Net Flow: ${net_flow:,.0f}\n"
+                    response_text += f"🎯 Confidence: {confidence:.2%}\n\n"
+                    
+                    # Add interpretation
+                    if whale_score > 0.3:
+                        response_text += "🟢 **Whale Activity: ACCUMULATION**\n"
+                        response_text += "Whales are likely buying/accumulating\n\n"
+                    elif whale_score < -0.3:
+                        response_text += "🔴 **Whale Activity: DISTRIBUTION**\n"
+                        response_text += "Whales are likely selling/distributing\n\n"
+                    else:
+                        response_text += "⚪ **Whale Activity: NEUTRAL**\n"
+                        response_text += "No significant whale movements detected\n\n"
+                    
+                    # Show flow details
+                    if exchange_inflow > 0 or exchange_outflow > 0:
+                        response_text += "💹 **Exchange Flows:**\n"
+                        response_text += f"📥 Inflow: ${exchange_inflow:,.0f}\n"
+                        response_text += f"📤 Outflow: ${exchange_outflow:,.0f}\n"
+                        response_text += f"⚖️ Net Flow: ${net_flow:,.0f}\n\n"
+                        
+                        if net_flow > 0:
+                            response_text += "📈 Net positive flow (potential selling pressure)\n"
+                        elif net_flow < 0:
+                            response_text += "📉 Net negative flow (potential buying pressure)\n"
+                    
+                    if WHALE_ALERT_API_KEY == "your_whale_alert_api_key":
+                        response_text += "\n⚠️ **Note:** Using mock whale data. "
+                        response_text += "Get a free API key from https://whale-alert.io/ for real data."
+                        
+                except Exception as e:
+                    response_text += f"❌ Error analyzing {symbol}: {str(e)}"
+            else:
+                response_text += "Please specify a trading symbol (e.g., BTC, ETH, BNB)\n\n"
+                response_text += "**Example commands:**\n"
+                response_text += "• 'whale activity for BTC'\n"
+                response_text += "• 'analyze ETH whale transactions'\n"
+                response_text += "• 'show BNB whale flow'\n"
+        
+        elif "help" in message_text or "commands" in message_text:
+            response_text += "**Available Commands:**\n\n"
+            response_text += "🐋 **Whale Analysis:**\n"
+            response_text += "• 'whale [SYMBOL]' - Get whale activity\n"
+            response_text += "• 'transactions [SYMBOL]' - Show large transactions\n"
+            response_text += "• 'flow [SYMBOL]' - Analyze exchange flows\n\n"
+            response_text += "📊 **Analysis Includes:**\n"
+            response_text += "• Large transaction detection (>$1M)\n"
+            response_text += "• Exchange inflow/outflow analysis\n"
+            response_text += "• Net whale flow calculations\n"
+            response_text += "• Accumulation/distribution patterns\n\n"
+            response_text += "🎯 **Supported Symbols:**\n"
+            response_text += "BTC, ETH, BNB, ADA, SOL (and related pairs)"
+        
+        elif "status" in message_text:
+            response_text += "**Whale Agent Status:**\n\n"
+            response_text += f"🟢 Status: Active (Port 8006)\n"
+            response_text += f"💰 Address: {whale_agent.address[:16]}...\n"
+            response_text += f"🌐 Protocol: {PROTOCOL_NAME}\n"
+            
+            if WHALE_ALERT_API_KEY != "your_whale_alert_api_key":
+                response_text += f"📡 Data Source: Whale Alert API (Live)\n"
+            else:
+                response_text += f"📡 Data Source: Mock Data (Demo)\n"
+                response_text += f"🔑 API Key: Not configured\n"
+            
+            response_text += f"🐋 Threshold: $1M+ transactions\n"
+            response_text += f"⏰ Analysis Window: 24 hours\n"
+        
+        else:
+            response_text += "I'm your whale activity specialist! 🐋\n\n"
+            response_text += "I monitor large cryptocurrency transactions:\n"
+            response_text += "💰 Transactions >$1M USD\n"
+            response_text += "📊 Exchange inflow/outflow patterns\n"
+            response_text += "📈 Accumulation vs distribution signals\n"
+            response_text += "🎯 Market impact assessments\n\n"
+            
+            if WHALE_ALERT_API_KEY == "your_whale_alert_api_key":
+                response_text += "⚠️ Currently using mock data for demonstration.\n"
+                response_text += "Configure Whale Alert API key for live data.\n\n"
+            
+            response_text += "Try: 'whale BTC' or 'help' for commands"
+        
+        # Include session ID in response if it was in the request
+        if session_id:
+            response_text += f"\n\nsession:{session_id}"
+        
+        # Determine where to send response (user agent if specified, otherwise sender)
+        response_target = user_agent_address if user_agent_address else sender
+        ctx.logger.info(f"📤 Sending whale analysis to: {response_target[:16]}...")
+        
+        # Send response
+        await ctx.send(
+            response_target,
+            ChatMessage(
+                content=[TextContent(text=response_text)]
+            )
+        )
+        
+    except Exception as e:
+        ctx.logger.error(f"❌ Error handling chat message: {e}")
+        error_response = "Sorry, I encountered an error processing your message. Please try again."
+        await ctx.send(
+            sender,
+            ChatMessage(
+                content=[TextContent(text=error_response)]
+            )
+        )
+
+@chat_protocol.on_message(model=ChatAcknowledgement)
+async def handle_chat_ack(ctx: Context, sender: str, msg: ChatAcknowledgement):
+    """Handle chat acknowledgements"""
+    ctx.logger.info(f"💬 Chat acknowledgement from {sender}")
+
+# Include both protocols
 whale_agent.include(whale_protocol)
+whale_agent.include(chat_protocol)
 
 if __name__ == "__main__":
-    print(f"Whale Agent address: {whale_agent.address}")
-    print("Whale Agent is ready to analyze on-chain activity...")
+    print("=" * 60)
+    print("🐋 WHALE ACTIVITY AGENT WITH CHAT")
+    print("=" * 60)
+    print(f"Agent address: {whale_agent.address}")
+    print(f"Port: 8006")
+    print()
+    print("🐋 WHALE MONITORING:")
+    print("  ✅ Large transaction detection (>$1M)")
+    print("  ✅ Exchange inflow/outflow analysis")
+    print("  ✅ Net whale flow calculations")
+    print("  ✅ Accumulation/distribution patterns")
+    print()
+    print("💬 CHAT FEATURES:")
+    print("  ✅ Interactive whale analysis via chat")
+    print("  ✅ Real-time transaction monitoring")
+    print("  ✅ Symbol-specific whale activity")
+    print("  ✅ Help commands and status queries")
+    print()
     if WHALE_ALERT_API_KEY == "your_whale_alert_api_key":
-        print("⚠️  Using mock whale data. Get a free API key from https://whale-alert.io/ for real data.")
+        print("📡 DATA SOURCE: Mock Data (Demo)")
+        print("⚠️  Get a free API key from https://whale-alert.io/ for real data.")
+    else:
+        print("📡 DATA SOURCE: Whale Alert API (Live)")
+    print()
+    print("🚀 Starting Whale Agent with Chat...")
+    print("=" * 60)
     whale_agent.run()

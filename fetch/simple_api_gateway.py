@@ -22,6 +22,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 # Mock data for testing
 MOCK_BALANCE_DATA = {
     "address": "bc1q8sxznvhualuyyes0ded7kgt33876phpjhp29rs",

@@ -17,6 +17,227 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Custom Modern Scrollbar Design */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(59, 130, 246, 0.5) transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: rgba(24, 24, 27, 0.3);
+  border-radius: 10px;
+  margin: 4px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.6), rgba(6, 182, 212, 0.6));
+  border-radius: 10px;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  transition: all 0.3s ease;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.8), rgba(6, 182, 212, 0.8));
+  border: 1px solid rgba(59, 130, 246, 0.4);
+  transform: scale(1.1);
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:active {
+  background: linear-gradient(135deg, #3b82f6, #06b6d4);
+  border: 1px solid rgba(59, 130, 246, 0.6);
+}
+
+.scrollbar-thumb-zinc-700 {
+  scrollbar-color: rgba(82, 82, 91, 0.7) rgba(24, 24, 27, 0.2);
+}
+
+.scrollbar-thumb-zinc-700::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.scrollbar-thumb-zinc-700::-webkit-scrollbar-track {
+  background: rgba(24, 24, 27, 0.2);
+  border-radius: 8px;
+  margin: 2px;
+}
+
+.scrollbar-thumb-zinc-700::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, rgba(82, 82, 91, 0.6), rgba(113, 113, 122, 0.4));
+  border-radius: 8px;
+  border: 1px solid rgba(82, 82, 91, 0.3);
+  transition: all 0.2s ease;
+}
+
+.scrollbar-thumb-zinc-700::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, rgba(82, 82, 91, 0.8), rgba(113, 113, 122, 0.6));
+  border: 1px solid rgba(82, 82, 91, 0.5);
+}
+
+.scrollbar-track-transparent {
+  scrollbar-color: rgba(82, 82, 91, 0.5) transparent;
+}
+
+.scrollbar-track-transparent::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Chat-specific scrollbar for better UX */
+.chat-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(59, 130, 246, 0.4) rgba(24, 24, 27, 0.1);
+}
+
+.chat-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chat-scroll::-webkit-scrollbar-track {
+  background: rgba(24, 24, 27, 0.1);
+  border-radius: 6px;
+}
+
+.chat-scroll::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.4), rgba(6, 182, 212, 0.3));
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.chat-scroll::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.6), rgba(6, 182, 212, 0.5));
+}
+
+/* Animated scrollbar appears on hover */
+.scroll-hover {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.scroll-hover::-webkit-scrollbar {
+  width: 0px;
+  background: transparent;
+  transition: all 0.3s ease;
+}
+
+.scroll-hover:hover {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(59, 130, 246, 0.4) rgba(24, 24, 27, 0.1);
+}
+
+.scroll-hover:hover::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scroll-hover:hover::-webkit-scrollbar-track {
+  background: rgba(24, 24, 27, 0.1);
+  border-radius: 6px;
+}
+
+.scroll-hover:hover::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.4), rgba(6, 182, 212, 0.3));
+  border-radius: 6px;
+}
+
+/* Smooth scroll behavior */
+.smooth-scroll {
+  scroll-behavior: smooth;
+}
+
+/* Hide scrollbar but keep functionality */
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Gradient overlay for scroll indication */
+.scroll-gradient-top::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 20px;
+  background: linear-gradient(to bottom, rgba(24, 24, 27, 1), transparent);
+  pointer-events: none;
+  z-index: 10;
+}
+
+.scroll-gradient-bottom::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 20px;
+  background: linear-gradient(to top, rgba(24, 24, 27, 1), transparent);
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* Sidebar scrollbar */
+.sidebar-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(113, 113, 122, 0.3) transparent;
+}
+
+.sidebar-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+
+.sidebar-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background: rgba(113, 113, 122, 0.3);
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(113, 113, 122, 0.5);
+}
+
+/* Premium scrollbar with glow effect */
+.premium-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(59, 130, 246, 0.6) rgba(24, 24, 27, 0.2);
+}
+
+.premium-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.premium-scroll::-webkit-scrollbar-track {
+  background: rgba(24, 24, 27, 0.2);
+  border-radius: 10px;
+  margin: 4px;
+}
+
+.premium-scroll::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #3b82f6, #06b6d4);
+  border-radius: 10px;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.3);
+  transition: all 0.3s ease;
+}
+
+.premium-scroll::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, #2563eb, #0891b2);
+  border: 1px solid rgba(59, 130, 246, 0.5);
+  box-shadow: 0 0 15px rgba(59, 130, 246, 0.5);
+  transform: scale(1.05);
+}
+
 a {
   font-weight: 500;
   color: #646cff;

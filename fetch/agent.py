@@ -1,4 +1,5 @@
-import requests
+import aiohttp
+import requests  # Keep for other functions temporarily
 import json
 from uagents_core.contrib.protocols.chat import (
     chat_protocol_spec,
@@ -25,7 +26,14 @@ ASI1_HEADERS = {
 ASI1_MODEL = "asi1-mini"  # Use the lightest model by default
 
 CANISTER_ID = "uxrrr-q7777-77774-qaaaq-cai"
-BASE_URL = "http://localhost:8083"  # Changed to match api_gateway.py port
+
+# External API endpoints (not API Gateway)
+BLOCKCHAIR_BASE_URL = "https://api.blockchair.com"
+ETHERSCAN_BASE_URL = "https://api.etherscan.io/api"
+BASE_URL = "http://localhost:8083"  # Temporary - for other functions
+
+# API Keys (add your keys here)
+ETHERSCAN_API_KEY = "MIWU92VZ2HJ6M3TNZNID871477URI8PJHG"  # Get from https://etherscan.io/apis
 
 HEADERS = {
     "Content-Type": "application/json"
@@ -437,95 +445,555 @@ async def call_icp_endpoint(func_name: str, args: dict):
         
         # Handle different API endpoints based on function name
         if func_name == "get_current_fee_percentiles":
-            url = f"{BASE_URL}/get-current-fee-percentiles"
-            response = requests.post(url, headers=HEADERS, json={"currency": currency})
+            url = f"{BLOCKCHAIR_BASE_URL}/bitcoin/stats"
+            response = requests.get(url, headers=HEADERS)
         elif func_name == "get_balance":
-            url = f"{BASE_URL}/get-balance"
-            response = requests.post(url, headers=HEADERS, json={"address": args["address"], "currency": currency})
+            address = args["address"]
+            # Detect address type and use appropriate API
+            if address.startswith("0x") and len(address) == 42:
+                # Ethereum address - use Etherscan
+                url = f"{ETHERSCAN_BASE_URL}"
+                params = {
+                    "module": "account",
+                    "action": "balance",
+                    "address": address,
+                    "tag": "latest",
+                    "apikey": 'MIWU92VZ2HJ6M3TNZNID871477URI8PJHG'
+                }
+                response = requests.get(url, headers=HEADERS, params=params)
+            else:
+                # Bitcoin address - use Blockchair
+                url = f"{BLOCKCHAIR_BASE_URL}/bitcoin/dashboards/address/{address}"
+                response = requests.get(url, headers=HEADERS)
         elif func_name == "get_utxos":
-            url = f"{BASE_URL}/get-utxos"
-            response = requests.post(url, headers=HEADERS, json={"address": args["address"], "currency": currency})
+            address = args["address"]
+            url = f"{BLOCKCHAIR_BASE_URL}/bitcoin/dashboards/address/{address}"
+            response = requests.get(url, headers=HEADERS)
         elif func_name == "search_address":
-            url = f"{BASE_URL}/search-address/{args['address']}"
-            response = requests.get(url, headers=HEADERS, params={"currency": currency})
+            address = args['address']
+            # Detect address type and use appropriate API
+            if address.startswith("0x") and len(address) == 42:
+                # Ethereum address
+                url = f"{ETHERSCAN_BASE_URL}"
+                params = {
+                    "module": "account",
+                    "action": "balance", 
+                    "address": address,
+                    "tag": "latest",
+                    "apikey": 'MIWU92VZ2HJ6M3TNZNID871477URI8PJHG'
+                }
+                response = requests.get(url, headers=HEADERS, params=params)
+            else:
+                # Bitcoin address
+                url = f"{BLOCKCHAIR_BASE_URL}/bitcoin/dashboards/address/{address}"
+                response = requests.get(url, headers=HEADERS)
         elif func_name == "address_activity":
-            url = f"{BASE_URL}/address-activity/{args['address']}"
-            response = requests.get(url, headers=HEADERS, params={"currency": currency})
+            address = args['address']
+            if address.startswith("0x") and len(address) == 42:
+                # Ethereum address
+                url = f"{ETHERSCAN_BASE_URL}"
+                params = {
+                    "module": "account",
+                    "action": "txlist",
+                    "address": address,
+                    "startblock": 0,
+                    "endblock": 99999999,
+                    "sort": "desc",
+                    "apikey": 'MIWU92VZ2HJ6M3TNZNID871477URI8PJHG'
+                }
+                response = requests.get(url, headers=HEADERS, params=params)
+            else:
+                # Bitcoin address
+                url = f"{BLOCKCHAIR_BASE_URL}/bitcoin/dashboards/address/{address}"
+                response = requests.get(url, headers=HEADERS)
         elif func_name == "generate_wallet":
-            url = f"{BASE_URL}/generate-wallet"
-            response = requests.post(url, headers=HEADERS, json={"currency": currency})
+            # For now, return a message that this needs to be implemented
+            return {
+                "message": "Wallet generation should be done client-side for security",
+                "currency": currency
+            }
         elif func_name == "get_bitcoin_transaction":
             # Handle Bitcoin transaction lookup
             tx_hash = args["tx_hash"]
-            # Use our API gateway endpoint for Bitcoin transactions
-            url = f"{BASE_URL}/transaction/{tx_hash}"  # Use the smart transaction endpoint
+            url = f"{BLOCKCHAIR_BASE_URL}/bitcoin/dashboards/transaction/{tx_hash}"
             response = requests.get(url, headers=HEADERS)
             
-        # ICP specific endpoints
+        # ICP specific endpoints - use the same API as api_gateway.py
         elif func_name == "get_icp_account_info":
-            url = f"{BASE_URL}/icp/account/{args['address']}"
-            response = requests.get(url, headers=HEADERS)
+            address = args['address']
+            # Use the same ICP Ledger API as configured in api_gateway.py
+            try:
+                # Try the main ICP Ledger API that you have configured
+                icp_ledger_url = f"https://ledger-api.internetcomputer.org/accounts/{address}"
+                
+                try:
+                    icp_response = requests.get(icp_ledger_url, headers=HEADERS, timeout=10)
+                    if icp_response.status_code == 200:
+                        icp_data = icp_response.json()
+                        balance_e8s = int(icp_data.get("balance", 0))
+                        balance_icp = balance_e8s / 100000000  # Convert e8s to ICP
+                        
+                        # Try to get ICP price from CoinGecko
+                        try:
+                            price_response = requests.get(
+                                "https://api.coingecko.com/api/v3/simple/price?ids=internet-computer&vs_currencies=usd",
+                                headers=HEADERS,
+                                timeout=10
+                            )
+                            if price_response.status_code == 200:
+                                price_data = price_response.json()
+                                icp_price_usd = price_data.get("internet-computer", {}).get("usd", 0)
+                                balance_usd = balance_icp * icp_price_usd
+                            else:
+                                icp_price_usd = 0
+                                balance_usd = 0
+                        except:
+                            icp_price_usd = 0
+                            balance_usd = 0
+                        
+                        return {
+                            "address": address,
+                            "balance_e8s": balance_e8s,
+                            "balance_icp": balance_icp,
+                            "balance_usd": balance_usd,
+                            "icp_price_usd": icp_price_usd,
+                            "transaction_count": icp_data.get("transaction_count", 0),
+                            "currency": "ICP",
+                            "status": "success",
+                            "api_source": "ICP Ledger API"
+                        }
+                except Exception as ledger_error:
+                    print(f"ICP Ledger API failed: {ledger_error}")
+                
+                # Fallback: Try alternative endpoints if the main one fails
+                try:
+                    # Try IC Rocks API as fallback
+                    ic_rocks_url = f"https://ic.rocks/api/accounts/{address}"
+                    rocks_response = requests.get(ic_rocks_url, headers=HEADERS, timeout=10)
+                    if rocks_response.status_code == 200:
+                        rocks_data = rocks_response.json()
+                        balance_e8s = int(rocks_data.get("balance", 0))
+                        balance_icp = balance_e8s / 100000000
+                        
+                        # Try to get ICP price
+                        try:
+                            price_response = requests.get(
+                                "https://api.coingecko.com/api/v3/simple/price?ids=internet-computer&vs_currencies=usd",
+                                headers=HEADERS,
+                                timeout=10
+                            )
+                            if price_response.status_code == 200:
+                                price_data = price_response.json()
+                                icp_price_usd = price_data.get("internet-computer", {}).get("usd", 0)
+                                balance_usd = balance_icp * icp_price_usd
+                            else:
+                                icp_price_usd = 0
+                                balance_usd = 0
+                        except:
+                            icp_price_usd = 0
+                            balance_usd = 0
+                        
+                        return {
+                            "address": address,
+                            "balance_e8s": balance_e8s,
+                            "balance_icp": balance_icp,
+                            "balance_usd": balance_usd,
+                            "icp_price_usd": icp_price_usd,
+                            "transaction_count": rocks_data.get("transaction_count", 0),
+                            "currency": "ICP",
+                            "status": "success",
+                            "api_source": "IC Rocks API (fallback)"
+                        }
+                except Exception as rocks_error:
+                    print(f"IC Rocks API also failed: {rocks_error}")
+                
+                # If both APIs fail, return informational message with actual URLs
+                return {
+                    "address": address,
+                    "balance_icp": "Unable to fetch - API unavailable",
+                    "message": "ICP APIs are currently unavailable. You can check your balance at:",
+                    "suggestions": [
+                        f"ICP Dashboard: https://dashboard.internetcomputer.org/account/{address}",
+                        f"IC Rocks Explorer: https://ic.rocks/account/{address}",
+                        f"NNS Frontend: https://nns.ic0.app/",
+                        "Use dfx command: dfx canister call rrkah-fqaaa-aaaaa-aaaaq-cai account_balance"
+                    ],
+                    "currency": "ICP",
+                    "status": "api_unavailable",
+                    "api_source": "Multiple ICP APIs tried"
+                }
+                
+            except Exception as e:
+                return {
+                    "address": address,
+                    "error": f"ICP balance lookup failed: {str(e)}",
+                    "message": "ICP balance lookup encountered an error",
+                    "suggestions": [
+                        f"Check manually: https://dashboard.internetcomputer.org/account/{address}",
+                        f"Or use: https://ic.rocks/account/{address}"
+                    ],
+                    "status": "error"
+                }
         elif func_name == "get_icp_transaction":
-            url = f"{BASE_URL}/icp/transaction/{args['tx_hash']}"
-            response = requests.get(url, headers=HEADERS)
+            # ICP transaction lookup using the ICP Ledger API
+            tx_hash = args['tx_hash']
+            try:
+                # Try to get transaction details from ICP Ledger API
+                icp_tx_url = f"https://ledger-api.internetcomputer.org/transactions/{tx_hash}"
+                tx_response = requests.get(icp_tx_url, headers=HEADERS, timeout=10)
+                
+                if tx_response.status_code == 200:
+                    tx_data = tx_response.json()
+                    return {
+                        "tx_hash": tx_hash,
+                        "transaction_data": tx_data,
+                        "currency": "ICP",
+                        "status": "success",
+                        "api_source": "ICP Ledger API"
+                    }
+                else:
+                    return {
+                        "tx_hash": tx_hash,
+                        "message": f"Transaction not found in ICP ledger (Status: {tx_response.status_code})",
+                        "suggestions": [
+                            f"Check on IC Rocks: https://ic.rocks/transaction/{tx_hash}",
+                            f"Check on ICP Dashboard: https://dashboard.internetcomputer.org/"
+                        ],
+                        "status": "not_found"
+                    }
+            except Exception as e:
+                return {
+                    "tx_hash": tx_hash,
+                    "error": f"ICP transaction lookup failed: {str(e)}",
+                    "message": "Could not fetch transaction from ICP ledger",
+                    "suggestions": [
+                        f"Check manually: https://ic.rocks/transaction/{tx_hash}"
+                    ],
+                    "status": "error"
+                }
         elif func_name == "get_icp_account_transactions":
-            # New function to specifically handle ICP account transactions
+            # ICP account transactions using the ICP Ledger API
             address = args["address"]
-            limit = args.get("limit", 10)
-            url = f"{BASE_URL}/icp/account/{address}/transactions"
-            params = {
-                "limit": limit,
-                "from_account": address,
-                "to_account": address
-            }
-            response = requests.get(url, headers=HEADERS, params=params)
+            try:
+                # Get transactions for this ICP account
+                icp_tx_url = f"https://ledger-api.internetcomputer.org/accounts/{address}/transactions"
+                params = {
+                    "limit": 10,
+                    "offset": 0,
+                    "sort_by": "-block_height"  # Most recent first
+                }
+                
+                tx_response = requests.get(icp_tx_url, headers=HEADERS, params=params, timeout=10)
+                
+                if tx_response.status_code == 200:
+                    tx_data = tx_response.json()
+                    transactions = tx_data.get("blocks", [])
+                    
+                    # Format transactions for display
+                    formatted_txs = []
+                    for tx in transactions[:5]:  # Show last 5 transactions
+                        formatted_tx = {
+                            "tx_hash": tx.get("transaction_hash", ""),
+                            "block_height": tx.get("block_height", 0),
+                            "timestamp": tx.get("created_at", 0),
+                            "type": tx.get("transfer_type", "TRANSFER"),
+                            "amount_e8s": tx.get("amount", 0),
+                            "amount_icp": tx.get("amount", 0) / 100000000,
+                            "fee_e8s": tx.get("fee", 0),
+                            "from": tx.get("from_account_identifier", ""),
+                            "to": tx.get("to_account_identifier", "")
+                        }
+                        formatted_txs.append(formatted_tx)
+                    
+                    return {
+                        "address": address,
+                        "transactions": formatted_txs,
+                        "total_count": tx_data.get("total", len(formatted_txs)),
+                        "currency": "ICP",
+                        "status": "success",
+                        "api_source": "ICP Ledger API"
+                    }
+                else:
+                    return {
+                        "address": address,
+                        "message": f"Could not fetch transactions (Status: {tx_response.status_code})",
+                        "suggestions": [
+                            f"Check manually: https://ic.rocks/account/{address}",
+                            f"Or use: https://dashboard.internetcomputer.org/account/{address}"
+                        ],
+                        "status": "api_error"
+                    }
+                    
+            except Exception as e:
+                return {
+                    "address": address,
+                    "error": f"ICP transaction lookup failed: {str(e)}",
+                    "message": "Could not fetch account transactions from ICP ledger",
+                    "suggestions": [
+                        f"Check manually: https://ic.rocks/account/{address}"
+                    ],
+                    "status": "error"
+                }
         elif func_name == "get_icp_blocks":
-            start = args.get("start", 0)
-            limit = args.get("limit", 10)
-            url = f"{BASE_URL}/icp/blocks"
-            response = requests.get(url, headers=HEADERS, params={"start": start, "limit": limit})
+            # Get ICP blocks using the ICP Ledger API
+            try:
+                start = args.get("start", 0)
+                limit = args.get("limit", 10)
+                
+                icp_blocks_url = f"https://ledger-api.internetcomputer.org/blocks"
+                params = {"start": start, "limit": limit}
+                
+                blocks_response = requests.get(icp_blocks_url, headers=HEADERS, params=params, timeout=10)
+                
+                if blocks_response.status_code == 200:
+                    blocks_data = blocks_response.json()
+                    blocks = blocks_data.get("blocks", [])
+                    
+                    return {
+                        "blocks": blocks,
+                        "start": start,
+                        "limit": limit,
+                        "currency": "ICP",
+                        "status": "success",
+                        "api_source": "ICP Ledger API"
+                    }
+                else:
+                    return {
+                        "message": f"Could not fetch ICP blocks (Status: {blocks_response.status_code})",
+                        "suggestion": "Check ICP explorer for block information",
+                        "status": "api_error"
+                    }
+                    
+            except Exception as e:
+                return {
+                    "error": f"ICP blocks lookup failed: {str(e)}",
+                    "message": "Could not fetch blocks from ICP ledger",
+                    "suggestion": "Use ICP explorer for block details.",
+                    "status": "error"
+                }
         elif func_name == "get_icp_fees":
-            url = f"{BASE_URL}/icp/fees"
-            response = requests.get(url, headers=HEADERS)
+            # Get ICP fee information using the ICP Ledger API
+            try:
+                # Get general info about ICP which includes fee information
+                icp_info_url = f"https://ledger-api.internetcomputer.org/info"
+                
+                info_response = requests.get(icp_info_url, headers=HEADERS, timeout=10)
+                
+                if info_response.status_code == 200:
+                    info_data = info_response.json()
+                    standard_fee_e8s = info_data.get("standard_fee", 10000)  # Default 10000 e8s
+                    standard_fee_icp = standard_fee_e8s / 100000000
+                    
+                    return {
+                        "standard_fee_e8s": standard_fee_e8s,
+                        "standard_fee_icp": standard_fee_icp,
+                        "currency": "ICP",
+                        "status": "success",
+                        "api_source": "ICP Ledger API"
+                    }
+                else:
+                    return {
+                        "standard_fee_e8s": 10000,  # Default fee
+                        "standard_fee_icp": 0.0001,
+                        "message": "Using default ICP fee (API unavailable)",
+                        "currency": "ICP",
+                        "status": "default_values"
+                    }
+                    
+            except Exception as e:
+                return {
+                    "error": f"ICP fee lookup failed: {str(e)}",
+                    "standard_fee_e8s": 10000,  # Default fee
+                    "standard_fee_icp": 0.0001,
+                    "message": "Using default ICP fee due to API error",
+                    "currency": "ICP",
+                    "status": "error"
+                }
+        elif func_name == "get_icp_stats":
+            # Get ICP blockchain statistics using the ICP Ledger API
+            try:
+                icp_stats_url = f"https://ledger-api.internetcomputer.org/stats"
+                
+                stats_response = requests.get(icp_stats_url, headers=HEADERS, timeout=10)
+                
+                if stats_response.status_code == 200:
+                    stats_data = stats_response.json()
+                    
+                    # Add computed metrics if possible
+                    if "total_transactions" in stats_data and "total_accounts" in stats_data:
+                        stats_data["avg_transactions_per_account"] = (
+                            stats_data["total_transactions"] / stats_data["total_accounts"] 
+                            if stats_data["total_accounts"] > 0 else 0
+                        )
+                    
+                    return {
+                        "stats": stats_data,
+                        "currency": "ICP",
+                        "status": "success",
+                        "api_source": "ICP Ledger API"
+                    }
+                else:
+                    return {
+                        "message": f"Could not fetch ICP stats (Status: {stats_response.status_code})",
+                        "suggestion": "Check ICP dashboard for blockchain statistics",
+                        "status": "api_error"
+                    }
+                    
+            except Exception as e:
+                return {
+                    "error": f"ICP stats lookup failed: {str(e)}",
+                    "message": "Could not fetch blockchain stats from ICP ledger",
+                    "suggestion": "Check ICP dashboard for statistics",
+                    "status": "error"
+                }
             
         # Ethereum specific endpoints
         elif func_name == "get_ethereum_account_info":
-            url = f"{BASE_URL}/ethereum/account/{args['address']}"
-            response = requests.get(url, headers=HEADERS)
+            address = args['address']
+            url = f"{ETHERSCAN_BASE_URL}"
+            params = {
+                "module": "account",
+                "action": "balance",
+                "address": address,
+                "tag": "latest",
+                "apikey": 'MIWU92VZ2HJ6M3TNZNID871477URI8PJHG'
+            }
+            response = requests.get(url, headers=HEADERS, params=params)
         elif func_name == "get_ethereum_tokens":
-            url = f"{BASE_URL}/ethereum/tokens/{args['address']}"
-            response = requests.get(url, headers=HEADERS)
+            address = args['address']
+            url = f"{ETHERSCAN_BASE_URL}"
+            params = {
+                "module": "account",
+                "action": "tokentx",
+                "address": address,
+                "startblock": 0,
+                "endblock": 99999999,
+                "sort": "desc",
+                "apikey": 'MIWU92VZ2HJ6M3TNZNID871477URI8PJHG'
+            }
+            response = requests.get(url, headers=HEADERS, params=params)
         elif func_name == "get_ethereum_transaction":
-            url = f"{BASE_URL}/ethereum/transaction/{args['tx_hash']}"
-            response = requests.get(url, headers=HEADERS)
+            tx_hash = args['tx_hash']
+            
+            # Check if we have a valid API key
+            if 'MIWU92VZ2HJ6M3TNZNID871477URI8PJHG' == 'MIWU92VZ2HJ6M3TNZNID871477URI8PJHG':
+                # Return mock data if no API key is configured
+                return {
+                    "result": {
+                        "hash": tx_hash,
+                        "status": "success",
+                        "message": "This is mock data. Please configure ETHERSCAN_API_KEY for real data.",
+                        "from": "0x...",
+                        "to": "0x...",
+                        "value": "0",
+                        "gas": "21000",
+                        "gasPrice": "20000000000",
+                        "blockNumber": "0x0"
+                    }
+                }
+            
+            url = f"{ETHERSCAN_BASE_URL}"
+            params = {
+                "module": "proxy",
+                "action": "eth_getTransactionByHash",
+                "txhash": tx_hash,
+                "apikey": 'MIWU92VZ2HJ6M3TNZNID871477URI8PJHG'
+            }
+            response = requests.get(url, headers=HEADERS, params=params)
         else:
             raise ValueError(f"Unsupported function call: {func_name}")
         
-        # Print response for debugging
-        print(f"Response from {url}: {response.status_code}")
-        print(f"Response content: {response.text}")
-        
-        response.raise_for_status()
-        return response.json()
+        # Handle responses that were fetched
+        if 'response' in locals():
+            # Print response for debugging
+            print(f"Response from {url}: {response.status_code}")
+            print(f"Response content: {response.text}")
+            
+            response.raise_for_status()
+            result = response.json()
+            
+            # Post-process Ethereum balance responses
+            if func_name in ["get_balance", "search_address", "get_ethereum_account_info"] and 'result' in result:
+                address = args.get('address', '')
+                if address.startswith("0x") and len(address) == 42:
+                    # Convert Wei to ETH for Ethereum balances
+                    try:
+                        wei_balance = int(result['result'])
+                        eth_balance = wei_balance / 1e18  # Convert Wei to ETH
+                        
+                        # Get transaction count
+                        try:
+                            tx_count_params = {
+                                "module": "proxy",
+                                "action": "eth_getTransactionCount",
+                                "address": address,
+                                "tag": "latest",
+                                "apikey": 'MIWU92VZ2HJ6M3TNZNID871477URI8PJHG'
+                            }
+                            tx_count_response = requests.get(f"{ETHERSCAN_BASE_URL}", params=tx_count_params)
+                            tx_count_data = tx_count_response.json()
+                            tx_count = int(tx_count_data.get('result', '0x0'), 16) if tx_count_data.get('result') else 0
+                        except:
+                            tx_count = 0
+                        
+                        # Get ETH price (simple approach using a free API)
+                        eth_price_usd = 0
+                        try:
+                            price_response = requests.get("https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd")
+                            price_data = price_response.json()
+                            eth_price_usd = price_data.get('ethereum', {}).get('usd', 0)
+                        except:
+                            eth_price_usd = 0
+                        
+                        balance_usd = eth_balance * eth_price_usd if eth_price_usd > 0 else 0
+                        
+                        return {
+                            "address": address,
+                            "balance_wei": str(wei_balance),
+                            "balance_eth": round(eth_balance, 6),
+                            "balance_formatted": f"{eth_balance:.6f} ETH",
+                            "balance_usd": round(balance_usd, 2) if balance_usd > 0 else None,
+                            "balance_usd_formatted": f"${balance_usd:,.2f} USD" if balance_usd > 0 else "USD price unavailable",
+                            "transaction_count": tx_count,
+                            "eth_price_usd": eth_price_usd if eth_price_usd > 0 else None,
+                            "currency": "ETH",
+                            "status": "success",
+                            "api_source": "Etherscan + CoinGecko"
+                        }
+                    except (ValueError, KeyError):
+                        return {
+                            "address": address,
+                            "error": "Failed to parse balance",
+                            "raw_response": result
+                        }
+            
+            return result
+        else:
+            # This was a placeholder response that was already returned
+            pass
+            
     except requests.exceptions.RequestException as e:
         print(f"Error calling {func_name}: {str(e)}")
         if hasattr(e, 'response') and e.response is not None:
             print(f"Response status: {e.response.status_code}")
             print(f"Response content: {e.response.text}")
-        raise
+        return {
+            "error": f"API error in {func_name}: {str(e)}",
+            "function": func_name
+        }
+    except Exception as e:
+        print(f"Unexpected error in {func_name}: {str(e)}")
+        return {
+            "error": f"Unexpected error in {func_name}: {str(e)}",
+            "function": func_name
+        }
 
 async def process_query(query: str, ctx: Context, sender: str = "anonymous") -> str:
     try:
-        # First, check if the query contains a transaction hash
-        tx_hash_pattern = r'\b[a-fA-F0-9]{64}\b'  # Matches 64 character hex string (standard for tx hashes)
-        eth_tx_pattern = r'\b0x[a-fA-F0-9]{64}\b'  # Matches Ethereum transaction hash format
-        
-        tx_match = re.search(tx_hash_pattern, query)
-        eth_tx_match = re.search(eth_tx_pattern, query)
-        
-        # Check if query mentions specific blockchains
+        # Check if query mentions specific blockchains first
         is_icp_query = bool(re.search(r'\b(icp|internet computer|dfinity)\b', query.lower()))
         is_eth_query = bool(re.search(r'\b(eth|ethereum|erc20|tokens)\b', query.lower()))
+        is_btc_query = bool(re.search(r'\b(btc|bitcoin)\b', query.lower()))
         
         # Check for wallet references
         wallet_phrases = [
@@ -535,85 +1003,106 @@ async def process_query(query: str, ctx: Context, sender: str = "anonymous") -> 
         ]
         uses_generic_wallet_reference = any(re.search(pattern, query.lower()) for pattern in wallet_phrases)
         
-        # Bitcoin address pattern (more specific)
+        # Address patterns (check addresses BEFORE transaction hashes)
         bitcoin_address_pattern = r'\b(bc1|[13])[a-zA-HJ-NP-Z0-9]{25,39}\b'
-        # ICP account identifier pattern (more specific)
-        icp_address_pattern = r'\b[a-f0-9]{64}\b'  # 64-character hex string for ICP account identifiers
-        # Ethereum address pattern
-        ethereum_address_pattern = r'\b0x[a-fA-F0-9]{40}\b'  # 0x followed by 40 hex characters
+        ethereum_address_pattern = r'\b0x[a-fA-F0-9]{40}\b'
+        icp_address_pattern = r'\b[a-f0-9]{64}\b'
         
-        # Find address matches
+        # Transaction hash patterns
+        tx_hash_pattern = r'\b[a-fA-F0-9]{64}\b'
+        eth_tx_pattern = r'\b0x[a-fA-F0-9]{64}\b'
+        
+        # Find address matches first (higher priority than transaction hashes)
         btc_address_match = re.search(bitcoin_address_pattern, query)
         eth_address_match = re.search(ethereum_address_pattern, query)
         
-        # For ICP addresses, only consider hex strings that aren't transaction hashes
-        # This is a heuristic since both can be 64-char hex strings
-        potential_icp_addresses = re.finditer(icp_address_pattern, query)
+        # For ICP, be smarter about distinguishing addresses from transaction hashes
         icp_address_match = None
+        tx_match = None
+        eth_tx_match = re.search(eth_tx_pattern, query)
         
-        # If query is specifically about ICP and contains a 64-char hex that isn't clearly
-        # described as a transaction, treat it as an ICP account
+        # Check for ICP addresses with context
         if is_icp_query:
-            for match in potential_icp_addresses:
-                # Look for contextual clues that this is an account, not a transaction
-                address_context = query.lower()
+            potential_icp_matches = list(re.finditer(icp_address_pattern, query))
+            for match in potential_icp_matches:
+                hex_string = match.group(0)
                 match_pos = match.start()
-                prefix_text = address_context[max(0, match_pos-20):match_pos]
                 
-                # If it's clearly mentioned as an account/address, use it
-                account_indicators = ['account', 'address', 'wallet', 'balance']
-                if any(indicator in prefix_text for indicator in account_indicators):
+                # Look at surrounding context to determine if it's an address or transaction
+                context_before = query.lower()[max(0, match_pos-30):match_pos]
+                context_after = query.lower()[match_pos + len(hex_string):match_pos + len(hex_string) + 30]
+                full_context = context_before + context_after
+                
+                # Address indicators
+                address_indicators = ['address', 'account', 'wallet', 'balance', 'icp', 'search', 'check', 'find']
+                tx_indicators = ['transaction', 'tx', 'hash', 'block']
+                
+                # Check if it's clearly described as an address
+                address_score = sum(1 for indicator in address_indicators if indicator in full_context)
+                tx_score = sum(1 for indicator in tx_indicators if indicator in full_context)
+                
+                # If it's an ICP query and no clear transaction indicators, treat as address
+                if address_score > tx_score or (address_score >= tx_score and is_icp_query):
                     icp_address_match = match
                     break
             
-            # If no match with context, and there's only one hex string and it's mentioned with ICP
-            # assume it's an account if not in clear transaction context
-            if not icp_address_match and tx_match:
-                tx_match_pos = tx_match.start()
-                surrounding_text = query.lower()[max(0, tx_match_pos-15):tx_match_pos+tx_match.end()+15]
-                
-                # Check if it's clearly a transaction
-                tx_indicators = ['transaction', 'tx', 'hash', 'block']
-                is_tx = any(indicator in surrounding_text for indicator in tx_indicators)
-                
-                # If not clearly a transaction, it might be an account
-                if not is_tx and is_icp_query:
-                    icp_address_match = tx_match
-                    # Nullify the transaction match since we're treating it as an account
-                    tx_match = None
+            # If no clear address match but we found a hex string and it's an ICP query, treat as address
+            if not icp_address_match and potential_icp_matches and is_icp_query:
+                # Only consider it an address if there are no clear transaction keywords
+                context = query.lower()
+                if not any(keyword in context for keyword in ['transaction', 'tx', 'hash']):
+                    icp_address_match = potential_icp_matches[0]
         
-        # Process addresses if found
+        # Now check for transaction hashes (lower priority)
+        if not icp_address_match:  # Only look for transactions if we didn't find an ICP address
+            if not eth_tx_match:  # Only look for generic tx hash if no ETH tx found
+                tx_match = re.search(tx_hash_pattern, query)
+                # But if this matches an ICP query context, skip it
+                if tx_match and is_icp_query:
+                    tx_context = query.lower()
+                    if not any(keyword in tx_context for keyword in ['transaction', 'tx', 'hash', 'block']):
+                        tx_match = None  # Don't treat as transaction
+        # Process addresses if found (in priority order)
         if btc_address_match:
             # Remember this wallet address for future use
             detected_address = btc_address_match.group(0)
             wallet_memory.remember_wallet(sender, detected_address)
             ctx.logger.info(f"Remembered Bitcoin wallet address: {detected_address} for user: {sender}")
             
-            # If the query is looking for specific info, try to directly satisfy it
-            if "balance" in query.lower():
-                # Directly call the balance API
-                try:
-                    response = await call_icp_endpoint("get_balance", {"address": detected_address, "currency": "BTC"})
+            # Get Bitcoin balance from Blockchair API
+            try:
+                response = await call_icp_endpoint("get_balance", {"address": detected_address, "currency": "BTC"})
+                
+                if isinstance(response, dict) and "data" in response:
+                    # Blockchair API response structure
+                    address_data = response["data"].get(detected_address, {}).get("address", {})
+                    balance_satoshis = address_data.get("balance", 0)
+                    balance_btc = balance_satoshis / 100000000  # Convert satoshis to BTC
+                    transaction_count = address_data.get("transaction_count", 0)
                     
-                    # Format response in a user-friendly way
-                    confirmed_sats = response.get("confirmed", 0)
-                    unconfirmed_sats = response.get("unconfirmed", 0)
-                    total_sats = confirmed_sats + unconfirmed_sats
-                    
-                    # Convert satoshis to BTC for display (1 BTC = 100,000,000 satoshis)
-                    confirmed_btc = confirmed_sats / 100000000
-                    unconfirmed_btc = unconfirmed_sats / 100000000
-                    total_btc = total_sats / 100000000
+                    # Get BTC price from CoinGecko
+                    try:
+                        price_response = requests.get("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd")
+                        price_data = price_response.json()
+                        btc_price_usd = price_data.get('bitcoin', {}).get('usd', 0)
+                        balance_usd = balance_btc * btc_price_usd if btc_price_usd > 0 else 0
+                    except:
+                        btc_price_usd = 0
+                        balance_usd = 0
                     
                     return f"💰 **Bitcoin Wallet Balance**\n\n" \
                            f"Address: `{detected_address}`\n\n" \
-                           f"Confirmed: {confirmed_btc:.8f} BTC\n" \
-                           f"Unconfirmed: {unconfirmed_btc:.8f} BTC\n" \
-                           f"Total: {total_btc:.8f} BTC\n\n" \
-                           f"_(Current BTC/USD price data not available. Add a cryptocurrency price API to show USD equivalent.)_"
-                except Exception as e:
-                    ctx.logger.error(f"Error getting balance: {str(e)}")
-                    return f"I found the Bitcoin address {detected_address}, but I couldn't fetch its current balance. The blockchain API might be temporarily unavailable."
+                           f"Balance: {balance_btc:.8f} BTC\n" \
+                           f"USD Value: ${balance_usd:,.2f} USD\n" \
+                           f"Transactions: {transaction_count}\n" \
+                           f"BTC Price: ${btc_price_usd:,.2f} USD\n\n" \
+                           f"_(Data from Blockchair API + CoinGecko)_"
+                else:
+                    return f"I found the Bitcoin address {detected_address}, but couldn't fetch balance data from Blockchair API."
+                    
+            except Exception as e:
+                ctx.logger.error(f"Error getting Bitcoin balance: {str(e)}")
+                return f"I found the Bitcoin address {detected_address}, but I couldn't fetch its current balance. The Blockchair API might be temporarily unavailable."
         
         elif eth_address_match:
             # Remember this Ethereum wallet address for future use
@@ -621,65 +1110,106 @@ async def process_query(query: str, ctx: Context, sender: str = "anonymous") -> 
             wallet_memory.remember_wallet(f"{sender}_eth", detected_address)
             ctx.logger.info(f"Remembered Ethereum wallet address: {detected_address} for user: {sender}")
             
-            # If the query is looking for specific info, try to directly satisfy it
-            if "balance" in query.lower():
-                # Directly call the Ethereum balance API
-                try:
-                    response = await call_icp_endpoint("get_ethereum_account_info", {"address": detected_address})
-                    
-                    # Format response in a user-friendly way
-                    balance_wei = response.get("balance_wei", 0)
+            # Get Ethereum balance from Etherscan API + USD price from CoinGecko
+            try:
+                response = await call_icp_endpoint("get_ethereum_account_info", {"address": detected_address})
+                
+                if isinstance(response, dict) and response.get("status") == "success":
                     balance_eth = response.get("balance_eth", 0)
+                    transaction_count = response.get("transaction_count", 0)
+                    balance_usd = response.get("balance_usd", 0)
+                    eth_price_usd = response.get("eth_price_usd", 0)
                     
                     return f"💰 **Ethereum Wallet Balance**\n\n" \
                            f"Address: `{detected_address}`\n\n" \
                            f"Balance: {balance_eth:.6f} ETH\n" \
-                           f"Transaction Count: {response.get('transaction_count', 0)}\n\n" \
-                           f"_(Current ETH/USD price data not available. Add a cryptocurrency price API to show USD equivalent.)_"
-                except Exception as e:
-                    ctx.logger.error(f"Error getting Ethereum balance: {str(e)}")
-                    return f"I found the Ethereum address {detected_address}, but I couldn't fetch its current balance. The blockchain API might be temporarily unavailable."
-            
-            # If the query is looking for tokens
-            elif any(token_term in query.lower() for token_term in ["token", "erc20", "erc-20"]):
-                try:
-                    response = await call_icp_endpoint("get_ethereum_tokens", {"address": detected_address})
-                    tokens = response.get("tokens", [])
+                           f"USD Value: ${balance_usd:,.2f} USD\n" \
+                           f"Transactions: {transaction_count}\n" \
+                           f"ETH Price: ${eth_price_usd:,.2f} USD\n\n" \
+                           f"_(Data from Etherscan API + CoinGecko)_"
+                else:
+                    return f"I found the Ethereum address {detected_address}, but couldn't fetch balance data from Etherscan API."
                     
-                    if not tokens:
-                        return f"The Ethereum address `{detected_address}` doesn't have any ERC-20 token balances."
-                    
-                    # Format token balances in a readable way
-                    result = f"🪙 **ERC-20 Tokens for `{detected_address}`**\n\n"
-                    
-                    # Sort tokens by balance value (highest first)
-                    tokens.sort(key=lambda x: x.get("balance", 0), reverse=True)
-                    
-                    for token in tokens:
-                        token_name = token.get("name", "Unknown")
-                        token_symbol = token.get("symbol", "???")
-                        token_balance = token.get("balance", 0)
-                        
-                        result += f"**{token_name} ({token_symbol})**: {token_balance:,.6f}\n"
-                    
-                    return result
-                except Exception as e:
-                    ctx.logger.error(f"Error getting Ethereum tokens: {str(e)}")
-                    return f"I found the Ethereum address {detected_address}, but I couldn't fetch its token balances. The blockchain API might be temporarily unavailable."
+            except Exception as e:
+                ctx.logger.error(f"Error getting Ethereum balance: {str(e)}")
+                return f"I found the Ethereum address {detected_address}, but I couldn't fetch its current balance. The Etherscan API might be temporarily unavailable."
+        
         elif icp_address_match and is_icp_query:
             # Remember this ICP address for future use
             detected_address = icp_address_match.group(0)
             wallet_memory.remember_wallet(f"{sender}_icp", detected_address)
             ctx.logger.info(f"Remembered ICP address: {detected_address} for user: {sender}")
             
-            # If this looks like both a transaction and an address, prefer treating it as an address
-            # in an ICP context where the user is asking about an account
-            if tx_match and tx_match.group(0) == detected_address:
-                tx_match = None  # Nullify the transaction match
+            # Get ICP account information
+            try:
+                response = await call_icp_endpoint("get_icp_account_info", {"address": detected_address})
+                
+                if isinstance(response, dict):
+                    if response.get("status") == "success":
+                        # We have actual balance data
+                        balance_icp = response.get("balance_icp", 0)
+                        balance_usd = response.get("balance_usd", 0)
+                        balance_e8s = response.get("balance_e8s", 0)
+                        icp_price_usd = response.get("icp_price_usd", 0)
+                        transaction_count = response.get("transaction_count", 0)
+                        api_source = response.get("api_source", "Unknown")
+                        
+                        return f"🏛️ **ICP Wallet Balance**\n\n" \
+                               f"Address: `{detected_address}`\n\n" \
+                               f"Balance: {balance_icp:.6f} ICP\n" \
+                               f"USD Value: ${balance_usd:,.2f} USD\n" \
+                               f"Balance (e8s): {balance_e8s:,}\n" \
+                               f"Transactions: {transaction_count}\n" \
+                               f"ICP Price: ${icp_price_usd:,.2f} USD\n\n" \
+                               f"_(Data from {api_source})_"
+                               
+                    elif response.get("status") == "api_unavailable":
+                        suggestions_text = "\n".join([f"• {suggestion}" for suggestion in response.get("suggestions", [])])
+                        
+                        return f"🏛️ **ICP Address Detected**\n\n" \
+                               f"Address: `{detected_address}`\n\n" \
+                               f"❌ **ICP APIs are temporarily unavailable**\n\n" \
+                               f"**You can check your balance at:**\n\n" \
+                               f"{suggestions_text}\n\n" \
+                               f"The ICP network APIs are currently not responding. Please try again later or use the links above."
+                               
+                    elif response.get("status") == "info_with_guidance":
+                        suggestions_text = "\n".join([f"• {suggestion}" for suggestion in response.get("suggestions", [])])
+                        
+                        return f"🏛️ **ICP Address Detected**\n\n" \
+                               f"Address: `{detected_address}`\n\n" \
+                               f"I've detected this as an Internet Computer Protocol (ICP) address.\n\n" \
+                               f"**To get actual ICP balance and transaction data:**\n\n" \
+                               f"{suggestions_text}\n\n" \
+                               f"**Why can't I show the balance directly?**\n" \
+                               f"ICP uses a different protocol than Bitcoin/Ethereum and requires specialized IC agent libraries " \
+                               f"for direct balance queries. Unlike Etherscan or Blockchair APIs, ICP balance queries need " \
+                               f"to interact with the Internet Computer network through IC agents.\n\n" \
+                               f"Would you like me to help with a Bitcoin or Ethereum address instead? " \
+                               f"I can fetch real-time balances for those!"
+                    else:
+                        error_msg = response.get("message", "Unknown error occurred")
+                        suggestions = response.get("suggestions", [])
+                        suggestions_text = "\n".join([f"• {suggestion}" for suggestion in suggestions]) if suggestions else ""
+                        
+                        return f"🏛️ **ICP Address Detected**\n\n" \
+                               f"Address: `{detected_address}`\n\n" \
+                               f"❌ **Error fetching balance:** {error_msg}\n\n" \
+                               f"**You can manually check at:**\n\n" \
+                               f"{suggestions_text}" if suggestions_text else f"• https://dashboard.internetcomputer.org/account/{detected_address}"
+                else:
+                    return f"I found the ICP address {detected_address}, but the response format was unexpected."
+                    
+            except Exception as e:
+                ctx.logger.error(f"Error getting ICP account info: {str(e)}")
+                return f"I found the ICP address {detected_address}, but I couldn't fetch its information. The ICP ledger might be temporarily unavailable."
+            
+            # IMPORTANT: Return early to prevent further processing
+            # This prevents the ICP address from being detected as a transaction hash later
         
-        # Explicitly handle transaction lookup if found
-        if tx_match:
-            # Found what looks like a transaction hash
+        # Handle transaction lookup ONLY if no address was found and processed
+        elif tx_match and not (btc_address_match or eth_address_match or (icp_address_match and is_icp_query)):
+            # Found what looks like a transaction hash and no address was processed
             tx_hash = tx_match.group(0)
             ctx.logger.info(f"Detected transaction hash in query: {tx_hash}")
             try:
@@ -955,7 +1485,7 @@ async def process_query(query: str, ctx: Context, sender: str = "anonymous") -> 
         ctx.logger.info(f"Tool calls detected: {len(tool_calls)}")
         
         if not tool_calls:
-            # If we have a transaction hash in the query, try to extract it and call get_transaction
+           
             tx_hash_pattern = r'\b[a-fA-F0-9]{64}\b'  # Matches 64 character hex string (standard for tx hashes)
             eth_tx_pattern = r'\b0x[a-fA-F0-9]{64}\b'  # Matches Ethereum transaction format
             
@@ -1255,7 +1785,8 @@ async def process_query(query: str, ctx: Context, sender: str = "anonymous") -> 
 agent = Agent(
     name='CryptoFinder',
     port=8001,
-    mailbox=True,
+    endpoint=["http://localhost:8001/submit"],
+    # mailbox=True,
     # network = "mainnet"
 )
 chat_proto = Protocol(spec=chat_protocol_spec)

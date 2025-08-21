@@ -154,11 +154,11 @@ PROTOCOL_NAME = "Crypto Trading v1"
 # AGENT ADDRESSES - SHARED CONSTANTS
 # ========================================
 
-TECHNICAL_AGENT_ADDRESS = "agent1qgn5e6pqta60x79jrlmhlqcajxykagyuzvsw28j25u3y7jpp3estktf0uy3"
-NEWS_AGENT_ADDRESS = "agent1qtt84hk6njyd07z5t8xrhc076wjsd3x3mlqd9qaem8hjnkrg6enpz8h2gfq"
-WHALE_AGENT_ADDRESS = "agent1qvqth3lnn5tw2dl3xsk60lvp0aeah65uyvscqg7l43pth4lytay6sd30fly"
-RISK_MANAGER_ADDRESS = "agent1qg9j3gx650julrvspcfsv3fhdcqlfjthf48tf0ljj7wpyzw29jwpgda2y0c"
-SIGNAL_AGENT_ADDRESS = "agent1qgszqd3n6evuxmdlalvv6t6693sphg5nd0xvf8em74kpyjqfg8t3s48nqz7"
+TECHNICAL_AGENT_ADDRESS = "agent1qgn5e6pqta60x79jrlmhlqcajxykagyuzvsw28j25u3y7jpp3estktf0uy3" # Update after run the agent
+NEWS_AGENT_ADDRESS = "agent1qtt84hk6njyd07z5t8xrhc076wjsd3x3mlqd9qaem8hjnkrg6enpz8h2gfq" # Update after run the agent
+WHALE_AGENT_ADDRESS = "agent1qvqth3lnn5tw2dl3xsk60lvp0aeah65uyvscqg7l43pth4lytay6sd30fly" # Update after run the agent
+RISK_MANAGER_ADDRESS = "agent1qg9j3gx650julrvspcfsv3fhdcqlfjthf48tf0ljj7wpyzw29jwpgda2y0c" # Update after run the agent
+SIGNAL_AGENT_ADDRESS = "agent1qgszqd3n6evuxmdlalvv6t6693sphg5nd0xvf8em74kpyjqfg8t3s48nqz7" # Update after run the agent
 
 if __name__ == "__main__":
     print("🔧 SHARED AGENT TYPES")
