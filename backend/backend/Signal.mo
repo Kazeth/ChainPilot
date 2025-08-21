@@ -37,7 +37,7 @@ persistent actor {
   public func createSignal(
     user : Principal,
     signalMessage : Text,
-    signalType : Types.SignalType,
+    signalType : Text,
     confidenceScore : Float,
     generatedAt : Time.Time,
   ) : async Types.Signal {

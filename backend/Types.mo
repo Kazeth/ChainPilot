@@ -139,14 +139,27 @@ module {
     timestamp : Time.Time;
   };
 
+  public type TradeAction = {
+    action : Text;
+    price : Float;
+  };
+
+  public type AutoTrade = {
+    autoTradeId : Text;
+    user : Principal;
+    asset : Asset;
+    assetAmount : Float; 
+    tradeActions : [TradeAction];
+  };
+
   // Signal / Alert
-  public type SignalType = { #BUY; #SELL; #HOLD };
+  // SignalType = { #BUY; #SELL; #HOLD };
 
   public type Signal = {
     signalId : Text;
     user : Principal;
     signalMessage : Text;
-    signalType : SignalType;
+    signalType : Text;
     confidenceScore : Float; // 0.0 - 1.0
     generatedAt : Time.Time;
   };
