@@ -1643,13 +1643,25 @@ async def process_query(query: str, ctx: Context, sender: str = "anonymous") -> 
                     return response_json["choices"][0]["message"]["content"]
                 else:
                     # If not crypto-related, return a message that the assistant is for crypto only
-                    return "I'm a cryptocurrency assistant and can only answer questions related to cryptocurrency and blockchain technology. Please ask me questions about:\n\n" + \
-                           "• Cryptocurrencies like Bitcoin, Ethereum, ICP and others\n" + \
-                           "• Blockchain technology and concepts\n" + \
-                           "• Wallets, transactions, and addresses\n" + \
-                           "• Crypto market information\n" + \
-                           "• Smart contracts and DeFi\n\n" + \
-                           "If you're looking for general information unrelated to cryptocurrency, please try a different assistant."
+                    return "🚀 **Hello! I'm ChainPilot AI** - Your specialized cryptocurrency and blockchain assistant.\n\n" + \
+                           "I'm designed to help you navigate the world of digital assets and blockchain technology. Here's what I can assist you with:\n\n" + \
+                           "💰 **Cryptocurrency Analysis**\n" + \
+                           "   • Bitcoin, Ethereum, ICP, and thousands of other digital assets\n" + \
+                           "   • Real-time price data, market trends, and trading insights\n" + \
+                           "   • Portfolio tracking and investment strategies\n\n" + \
+                           "🔗 **Blockchain Technology**\n" + \
+                           "   • Smart contracts and DeFi protocols\n" + \
+                           "   • NFTs and Web3 applications\n" + \
+                           "   • Consensus mechanisms and network analysis\n\n" + \
+                           "💼 **Wallet & Transaction Services**\n" + \
+                           "   • Address lookup and balance checking\n" + \
+                           "   • Transaction analysis and tracking\n" + \
+                           "   • Security best practices and wallet management\n\n" + \
+                           "📊 **Market Intelligence**\n" + \
+                           "   • Technical analysis and chart patterns\n" + \
+                           "   • News sentiment and market impact\n" + \
+                           "   • Trading signals and risk assessment\n\n" + \
+                           "For questions outside the cryptocurrency and blockchain space, I'd recommend consulting a general-purpose AI assistant. Let's explore the exciting world of crypto together! 🌟"
                            
             except Exception as e:
                 ctx.logger.error(f"Error checking if query is cryptocurrency-related: {str(e)}")
@@ -1673,13 +1685,25 @@ async def process_query(query: str, ctx: Context, sender: str = "anonymous") -> 
                     return response_json["choices"][0]["message"]["content"]
                 else:
                     # If not crypto-related, return a helpful message
-                    return "I'm a cryptocurrency assistant and can only answer questions related to cryptocurrency and blockchain technology. Please ask me questions about:\n\n" + \
-                           "• Cryptocurrencies like Bitcoin, Ethereum, ICP and others\n" + \
-                           "• Blockchain technology and concepts\n" + \
-                           "• Wallets, transactions, and addresses\n" + \
-                           "• Crypto market information\n" + \
-                           "• Smart contracts and DeFi\n\n" + \
-                           "If you're looking for general information unrelated to cryptocurrency, please try a different assistant."
+                    return "🚀 **Hello! I'm ChainPilot AI** - Your specialized cryptocurrency and blockchain assistant.\n\n" + \
+                           "I'm designed to help you navigate the world of digital assets and blockchain technology. Here's what I can assist you with:\n\n" + \
+                           "💰 **Cryptocurrency Analysis**\n" + \
+                           "   • Bitcoin, Ethereum, ICP, and thousands of other digital assets\n" + \
+                           "   • Real-time price data, market trends, and trading insights\n" + \
+                           "   • Portfolio tracking and investment strategies\n\n" + \
+                           "🔗 **Blockchain Technology**\n" + \
+                           "   • Smart contracts and DeFi protocols\n" + \
+                           "   • NFTs and Web3 applications\n" + \
+                           "   • Consensus mechanisms and network analysis\n\n" + \
+                           "💼 **Wallet & Transaction Services**\n" + \
+                           "   • Address lookup and balance checking\n" + \
+                           "   • Transaction analysis and tracking\n" + \
+                           "   • Security best practices and wallet management\n\n" + \
+                           "📊 **Market Intelligence**\n" + \
+                           "   • Technical analysis and chart patterns\n" + \
+                           "   • News sentiment and market impact\n" + \
+                           "   • Trading signals and risk assessment\n\n" + \
+                           "For questions outside the cryptocurrency and blockchain space, I'd recommend consulting a general-purpose AI assistant. Let's explore the exciting world of crypto together! 🌟"
 
         # Step 3: Execute tools and format results
         for tool_call in tool_calls:

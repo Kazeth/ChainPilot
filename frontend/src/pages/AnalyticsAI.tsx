@@ -82,55 +82,66 @@ const parseRichText = (text: string): React.ReactElement[] => {
   let currentIndex = 0;
   let key = 0;
 
-  // Regex to match **bold**, *italic*, and ***bold italic***
-  const markdownRegex = /(\*\*\*(.+?)\*\*\*|\*\*(.+?)\*\*|\*(.+?)\*)/g;
-  let match;
+  // First, split text by line breaks to handle them properly
+  const lines = text.split('\n');
+  
+  lines.forEach((line, lineIndex) => {
+    if (lineIndex > 0) {
+      // Add line break for all lines except the first
+      parts.push(<br key={`br-${key++}`} />);
+    }
+    
+    // Regex to match **bold**, *italic*, and ***bold italic***
+    const markdownRegex = /(\*\*\*(.+?)\*\*\*|\*\*(.+?)\*\*|\*(.+?)\*)/g;
+    let match;
+    let lineIndex_inner = 0;
 
-  while ((match = markdownRegex.exec(text)) !== null) {
-    // Add text before the match
-    if (match.index > currentIndex) {
+    while ((match = markdownRegex.exec(line)) !== null) {
+      // Add text before the match
+      if (match.index > lineIndex_inner) {
+        parts.push(
+          <span key={key++}>
+            {line.substring(lineIndex_inner, match.index)}
+          </span>
+        );
+      }
+
+      // Determine the type of formatting and add styled element
+      if (match[1].startsWith('***') && match[1].endsWith('***')) {
+        // Bold italic
+        parts.push(
+          <strong key={key++} className="font-bold italic">
+            {match[2]}
+          </strong>
+        );
+      } else if (match[1].startsWith('**') && match[1].endsWith('**')) {
+        // Bold
+        parts.push(
+          <strong key={key++} className="font-bold">
+            {match[3]}
+          </strong>
+        );
+      } else if (match[1].startsWith('*') && match[1].endsWith('*')) {
+        // Italic
+        parts.push(
+          <em key={key++} className="italic">
+            {match[4]}
+          </em>
+        );
+      }
+
+      lineIndex_inner = match.index + match[0].length;
+    }
+
+    // Add remaining text after last match in this line
+    if (lineIndex_inner < line.length) {
       parts.push(
         <span key={key++}>
-          {text.substring(currentIndex, match.index)}
+          {line.substring(lineIndex_inner)}
         </span>
       );
     }
-
-    // Determine the type of formatting and add styled element
-    if (match[1].startsWith('***') && match[1].endsWith('***')) {
-      // Bold italic
-      parts.push(
-        <strong key={key++} className="font-bold italic">
-          {match[2]}
-        </strong>
-      );
-    } else if (match[1].startsWith('**') && match[1].endsWith('**')) {
-      // Bold
-      parts.push(
-        <strong key={key++} className="font-bold">
-          {match[3]}
-        </strong>
-      );
-    } else if (match[1].startsWith('*') && match[1].endsWith('*')) {
-      // Italic
-      parts.push(
-        <em key={key++} className="italic">
-          {match[4]}
-        </em>
-      );
-    }
-
-    currentIndex = match.index + match[0].length;
-  }
-
-  // Add remaining text after last match
-  if (currentIndex < text.length) {
-    parts.push(
-      <span key={key++}>
-        {text.substring(currentIndex)}
-      </span>
-    );
-  }
+  });
 
   return parts;
 };
@@ -142,7 +153,7 @@ export const RichTextMessage: React.FC<RichTextMessageProps> = ({
   const richTextElements = parseRichText(text);
   
   return (
-    <div className={className}>
+    <div className={`whitespace-pre-wrap leading-relaxed ${className}`}>
       {richTextElements}
     </div>
   );
