@@ -349,6 +349,7 @@ export default function WalletPage() {
           {status}
         </div>
       )}
+    <LegacyBuztton />
     </>
   );
 }
