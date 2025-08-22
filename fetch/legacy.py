@@ -25,8 +25,8 @@ class LegacyCheckResponse(BaseModel):
 
 SMTP_HOST = "smtp.gmail.com"
 SMTP_PORT = 587
-SMTP_USER = "chainpilot.team@gmail.com"   
-SMTP_PASS = "asdm rprj mnbt ksqf"
+SMTP_USER = "email@gmail.com"   
+SMTP_PASS = "password"
 
 # =============================================================================
 # UTILITY FUNCTIONS
