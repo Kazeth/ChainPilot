@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   TrendingUp,
@@ -18,90 +18,58 @@ import {
 } from "lucide-react";
 import Button from "../components/ui/button";
 import Card from "../components/ui/card";
+import { wallet_backend } from "@/declarations/wallet_backend";
+import { marketData_backend } from "@/declarations/marketdata_backend";
+import { transaction_backend } from "@/declarations/transaction_backend";
+import { user_backend } from "@/declarations/user_backend";
+import { Principal } from "@dfinity/principal";
 
-// --- Mock Data ---
-const portfolioAssets = [
-  {
-    name: "Bitcoin",
-    symbol: "BTC",
-    balance: "0.501",
-    avgBuyPrice: "58,500.00",
-    currentValue: "30,060.00",
-    pnl: "+1,560.00",
-    pnlPercent: "+5.45%",
-    "24hChange": "+2.5%",
-    iconUrl: "https://placehold.co/40x40/F7931A/FFFFFF?text=B",
-    takeProfit: "65,000",
-    stopLoss: "55,000",
-  },
-  {
-    name: "Ethereum",
-    symbol: "ETH",
-    balance: "3.120",
-    avgBuyPrice: "1,850.00",
-    currentValue: "5,928.00",
-    pnl: "+156.00",
-    pnlPercent: "+2.71%",
-    "24hChange": "-1.2%",
-    iconUrl: "https://placehold.co/40x40/627EEA/FFFFFF?text=E",
-    takeProfit: null,
-    stopLoss: "1,700",
-  },
-  {
-    name: "Solana",
-    symbol: "SOL",
-    balance: "15.80",
-    avgBuyPrice: "45.00",
-    currentValue: "632.00",
-    pnl: "-79.00",
-    pnlPercent: "-11.11%",
-    "24hChange": "+7.8%",
-    iconUrl: "https://placehold.co/40x40/9945FF/FFFFFF?text=S",
-    takeProfit: null,
-    stopLoss: null,
-  },
-];
+// --- Type Definitions ---
+interface Asset {
+  assetId: string;
+  name: string;
+  symbol: string;
+  currentPrice: number;
+}
 
-const openOrders = [
-  {
-    symbol: "BTC",
-    action: "SELL",
-    amount: "0.1",
-    price: "65,000.00",
-    status: "Active",
-  },
-  {
-    symbol: "ETH",
-    action: "BUY",
-    amount: "2.0",
-    price: "1,800.00",
-    status: "Active",
-  },
-];
+interface Holding {
+  asset: Asset;
+  amount: number;
+  valueUSD?: number;
+}
 
-const tradeHistory = [
-  {
-    symbol: "BTC",
-    action: "BUY",
-    amount: "0.2",
-    price: "58,000.00",
-    date: "2023-10-26",
-  },
-  {
-    symbol: "ETH",
-    action: "SELL",
-    amount: "1.0",
-    price: "1,950.00",
-    date: "2023-10-25",
-  },
-  {
-    symbol: "SOL",
-    action: "BUY",
-    amount: "10.0",
-    price: "42.00",
-    date: "2023-10-24",
-  },
-];
+interface Wallet {
+  walletId: string;
+  principal: Principal;
+}
+
+interface Transaction {
+  txType: string;
+  amount: number;
+  timestamp: bigint;
+}
+
+interface PortfolioAsset {
+  name: string;
+  symbol: string;
+  balance: string;
+  avgBuyPrice: string;
+  currentValue: string;
+  pnl: string;
+  pnlPercent: string;
+  "24hChange": string;
+  iconUrl: string;
+  takeProfit: string | null;
+  stopLoss: string | null;
+}
+
+interface TradeHistoryItem {
+  symbol: string;
+  action: string;
+  amount: string;
+  price: string;
+  date: string;
+}
 
 // --- Main Portfolio Page Component ---
 export default function PortfolioPage() {
@@ -109,6 +77,8 @@ export default function PortfolioPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isBalanceVisible, setIsBalanceVisible] = useState(true);
   const [selectedAsset, setSelectedAsset] = useState<string | null>(null);
+  const [portfolioData, setPortfolioData] = useState<PortfolioAsset[]>([]);
+  const [history, setHistory] = useState<TradeHistoryItem[]>([]);
 
   // Reset selected asset when switching tabs to prevent state issues
   const handleTabChange = (tabName: string) => {
@@ -118,7 +88,7 @@ export default function PortfolioPage() {
     }
   };
 
-  const filteredHistory = tradeHistory.filter(
+  const filteredHistory = history.filter(
     (trade) =>
       trade.symbol.toLowerCase().includes(searchTerm.toLowerCase()) ||
       trade.action.toLowerCase().includes(searchTerm.toLowerCase())
@@ -130,14 +100,14 @@ export default function PortfolioPage() {
     visible: {
       opacity: 1,
       transition: {
-        staggerChildren: 0.1
-      }
-    }
+        staggerChildren: 0.1,
+      },
+    },
   };
 
   const itemVariants = {
     hidden: { y: 20, opacity: 0 },
-    visible: { y: 0, opacity: 1 }
+    visible: { y: 0, opacity: 1 },
   };
 
   const TabButton = ({
@@ -173,6 +143,130 @@ export default function PortfolioPage() {
     </motion.button>
   );
 
+  // Fetch data from backend (unchanged)
+  useEffect(() => {
+    async function initialize() {
+      try {
+        const mockPrincipalStr =
+          "b77a5-d2g6j-l4g7b-a5b7g-6g6a5-d2g6j-l4g7b-a5b7g-cai";
+        const mockPrincipal = Principal.fromText(mockPrincipalStr);
+
+        try {
+          const userDataResponse = await user_backend.getUserData(mockPrincipal);
+          const userData = Array.isArray(userDataResponse) && userDataResponse.length > 0
+            ? userDataResponse[0]
+            : null;
+          console.log("[v0] User data retrieved:", userData);
+        } catch (error) {
+          console.log("[v0] User data not found, continuing without username", error);
+        }
+
+        const walletsResponse = await wallet_backend.getWalletsByPrincipal(mockPrincipal);
+        const wallets = walletsResponse as unknown as Array<[Principal, Wallet[]]>;
+        const walletData = wallets.length > 0 ? wallets[0][1][0] : null;
+
+        if (walletData) {
+          const holdingsResponse = await wallet_backend.getHoldingsByWalletId(walletData.walletId);
+          const holdings = holdingsResponse as unknown as Array<[string, Holding[]]>;
+          const holdingsData = holdings.length > 0 ? holdings[0][1] : [];
+
+          const assetPromises = holdingsData.map(
+            async (holding: Holding): Promise<PortfolioAsset> => {
+              const asset = holding.asset;
+              let assetData: Asset | null = null;
+
+              try {
+                const assetDataResponse = await marketData_backend.getAssetByAssetId(asset.assetId);
+                assetData = Array.isArray(assetDataResponse) && assetDataResponse.length > 0
+                  ? assetDataResponse[0] as Asset
+                  : null;
+              } catch (error) {
+                console.log("[v0] Asset data not found for:", asset.assetId, error);
+                assetData = null;
+              }
+
+              const currentPrice = assetData?.currentPrice ?? 16.0;
+              const value = holding.valueUSD ?? holding.amount * currentPrice;
+              const avgBuyPrice = "0.00";
+              const avgBuyPriceNum = parseFloat(avgBuyPrice);
+              const pnl = avgBuyPriceNum > 0 ? value - holding.amount * avgBuyPriceNum : 0;
+              const pnlPercent = avgBuyPriceNum > 0
+                ? (pnl / (holding.amount * avgBuyPriceNum)) * 100
+                : 0;
+
+              const change24h = assetData
+                ? (
+                    ((assetData.currentPrice - assetData.currentPrice / 1.025) /
+                      assetData.currentPrice) *
+                    100
+                  ).toFixed(1)
+                : "0.0";
+
+              return {
+                name: asset.name,
+                symbol: asset.symbol,
+                balance: holding.amount.toString(),
+                avgBuyPrice,
+                currentValue: value.toFixed(2),
+                pnl: pnl.toFixed(2),
+                pnlPercent: pnlPercent.toFixed(2) + "%",
+                "24hChange": change24h + "%",
+                iconUrl: `https://placehold.co/40x40/${
+                  asset.symbol === "BTC"
+                    ? "F7931A"
+                    : asset.symbol === "ETH"
+                      ? "627EEA"
+                      : "9945FF"
+                }/FFFFFF?text=${asset.symbol[0]}`,
+                takeProfit: null,
+                stopLoss: null,
+              };
+            }
+          );
+
+          const assetList = await Promise.all(assetPromises);
+          setPortfolioData(assetList);
+
+          try {
+            const txsResponse = await transaction_backend.getAllUserTransactions(mockPrincipal);
+            const txs = txsResponse as unknown as Array<[string, Transaction]>;
+            
+            const historyData = txs.map(([, tx]) => ({
+              symbol: "Unknown",
+              action: tx.txType,
+              amount: tx.amount.toString(),
+              price: "0.00",
+              date: new Date(Number(tx.timestamp) / 1000000).toLocaleDateString(),
+            }));
+            
+            setHistory(historyData);
+          } catch (error) {
+            console.error("Failed to fetch transactions:", error);
+          }
+        }
+      } catch (error) {
+        console.error("Initialization failed:", error);
+      }
+    }
+    initialize();
+  }, []);
+
+  // Calculate total profit/loss and identify best/worst performers
+  const totalPnL = portfolioData.reduce((sum, asset) => sum + parseFloat(asset.pnl), 0).toFixed(2);
+  const totalPnLPercent = portfolioData.length > 0
+    ? portfolioData.reduce((sum, asset) => {
+        const value = parseFloat(asset.currentValue);
+        const buyValue = parseFloat(asset.avgBuyPrice) * parseFloat(asset.balance);
+        return buyValue > 0 ? sum + (value - buyValue) / buyValue * 100 : sum;
+      }, 0).toFixed(2) + "%"
+    : "0.00%";
+
+  const sortedBy24hChange = [...portfolioData].sort((a, b) => 
+    parseFloat(b["24hChange"]) - parseFloat(a["24hChange"])
+  );
+  const bestPerformer = sortedBy24hChange[0];
+  const worstPerformer = sortedBy24hChange[sortedBy24hChange.length - 1];
+
   return (
     <motion.div
       className="min-h-screen bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950 py-8 px-4"
@@ -183,7 +277,7 @@ export default function PortfolioPage() {
     >
       <div className="container mx-auto max-w-7xl">
         {/* Header Section */}
-        <motion.div 
+        <motion.div
           className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-8 gap-6"
           variants={itemVariants}
         >
@@ -202,10 +296,12 @@ export default function PortfolioPage() {
               >
                 My Portfolio
               </h1>
-              <p className="text-zinc-400 mt-1">Track your crypto investments</p>
+              <p className="text-zinc-400 mt-1">
+                Track your crypto investments
+              </p>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-3">
             <motion.button
               onClick={() => setIsBalanceVisible(!isBalanceVisible)}
@@ -215,11 +311,8 @@ export default function PortfolioPage() {
             >
               {isBalanceVisible ? <Eye size={20} /> : <EyeOff size={20} />}
             </motion.button>
-            
-            <motion.div
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-            >
+
+            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
               <Button
                 className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-200 flex items-center gap-2"
                 aria-label="Add new transaction"
@@ -232,7 +325,7 @@ export default function PortfolioPage() {
         </motion.div>
 
         {/* Tab Navigation */}
-        <motion.div 
+        <motion.div
           className="flex flex-wrap gap-3 mb-8 p-2 bg-zinc-900/50 backdrop-blur-sm rounded-xl border border-zinc-800/50"
           variants={itemVariants}
         >
@@ -251,7 +344,7 @@ export default function PortfolioPage() {
             transition={{ duration: 0.3 }}
           >
             {activeTab === "coins" && (
-              <motion.div 
+              <motion.div
                 key="coins-content"
                 className="space-y-8"
                 initial="hidden"
@@ -259,7 +352,7 @@ export default function PortfolioPage() {
                 variants={containerVariants}
               >
                 {/* Portfolio Overview Cards */}
-                <motion.div 
+                <motion.div
                   className="grid grid-cols-1 md:grid-cols-3 gap-6"
                   variants={containerVariants}
                 >
@@ -267,11 +360,17 @@ export default function PortfolioPage() {
                     <Card className="!p-6 bg-gradient-to-br from-green-500/10 to-emerald-500/10 border-green-500/20 hover:border-green-500/30 transition-all duration-300">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-zinc-400 text-sm mb-1">Total Profit / Loss</p>
-                          <p className={`text-3xl font-bold ${isBalanceVisible ? 'text-green-400' : 'text-zinc-500'}`}>
-                            {isBalanceVisible ? '+$1,637.00' : '••••••'}
+                          <p className="text-zinc-400 text-sm mb-1">
+                            Total Profit / Loss
                           </p>
-                          <p className="text-zinc-400 text-sm mt-1">+4.68% all time</p>
+                          <p
+                            className={`text-3xl font-bold ${isBalanceVisible ? "text-green-400" : "text-zinc-500"}`}
+                          >
+                            {isBalanceVisible ? `$${totalPnL}` : "••••••"}
+                          </p>
+                          <p className="text-zinc-400 text-sm mt-1">
+                            {totalPnLPercent}
+                          </p>
                         </div>
                         <motion.div
                           className="p-3 bg-green-500/20 rounded-lg"
@@ -287,11 +386,15 @@ export default function PortfolioPage() {
                     <Card className="!p-6 bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border-blue-500/20 hover:border-blue-500/30 transition-all duration-300">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-zinc-400 text-sm mb-1">Best Performer (24h)</p>
-                          <p className="text-3xl font-bold text-white">Solana</p>
+                          <p className="text-zinc-400 text-sm mb-1">
+                            Best Performer (24h)
+                          </p>
+                          <p className="text-3xl font-bold text-white">
+                            {bestPerformer ? bestPerformer.name : "N/A"}
+                          </p>
                           <p className="text-green-400 text-sm mt-1 flex items-center gap-1">
                             <ArrowUpRight size={16} />
-                            +7.8%
+                            {bestPerformer ? bestPerformer["24hChange"] : "0.0%"}
                           </p>
                         </div>
                         <motion.div
@@ -308,11 +411,15 @@ export default function PortfolioPage() {
                     <Card className="!p-6 bg-gradient-to-br from-red-500/10 to-orange-500/10 border-red-500/20 hover:border-red-500/30 transition-all duration-300">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-zinc-400 text-sm mb-1">Worst Performer (24h)</p>
-                          <p className="text-3xl font-bold text-white">Ethereum</p>
+                          <p className="text-zinc-400 text-sm mb-1">
+                            Worst Performer (24h)
+                          </p>
+                          <p className="text-3xl font-bold text-white">
+                            {worstPerformer ? worstPerformer.name : "N/A"}
+                          </p>
                           <p className="text-red-400 text-sm mt-1 flex items-center gap-1">
                             <ArrowDownRight size={16} />
-                            -1.2%
+                            {worstPerformer ? worstPerformer["24hChange"] : "0.0%"}
                           </p>
                         </div>
                         <motion.div
@@ -327,10 +434,7 @@ export default function PortfolioPage() {
                 </motion.div>
 
                 {/* Assets List */}
-                <motion.div 
-                  className="space-y-6"
-                  variants={containerVariants}
-                >
+                <motion.div className="space-y-6" variants={containerVariants}>
                   <motion.h2
                     className="text-2xl font-semibold text-white flex items-center gap-3"
                     style={{ fontFamily: "'Creati Display Bold', sans-serif" }}
@@ -339,118 +443,163 @@ export default function PortfolioPage() {
                     <DollarSign size={28} className="text-blue-400" />
                     Asset Details
                   </motion.h2>
-                  
-                  <motion.div 
+
+                  <motion.div
                     className="space-y-4"
                     variants={containerVariants}
                   >
-                    {portfolioAssets.map((asset, index) => (
-                      <motion.div
-                        key={`asset-${asset.symbol}`}
-                        variants={itemVariants}
-                        whileHover={{ scale: 1.02, y: -5 }}
-                        transition={{ duration: 0.2 }}
-                      >
-                        <Card 
-                          className={`!p-0 overflow-hidden cursor-pointer transition-all duration-300 ${
-                            selectedAsset === asset.symbol 
-                              ? 'ring-2 ring-blue-500/50 bg-blue-500/5' 
-                              : 'hover:bg-zinc-800/50'
-                          }`}
-                          onClick={() => setSelectedAsset(selectedAsset === asset.symbol ? null : asset.symbol)}
+                    {portfolioData.length > 0 ? (
+                      portfolioData.map((asset) => (
+                        <motion.div
+                          key={`asset-${asset.symbol}`}
+                          variants={itemVariants}
+                          whileHover={{ scale: 1.02, y: -5 }}
+                          transition={{ duration: 0.2 }}
                         >
-                          <div className="flex items-center justify-between p-6">
-                            <div className="flex items-center gap-4">
-                              <motion.img
-                                src={asset.iconUrl}
-                                alt={asset.name}
-                                className="w-12 h-12 rounded-full"
-                                whileHover={{ scale: 1.1 }}
-                              />
-                              <div>
-                                <p className="font-semibold text-white text-lg">{asset.name}</p>
-                                <p className="text-zinc-400 text-sm">
-                                  {isBalanceVisible ? `${asset.balance} ${asset.symbol}` : '••••••'}
+                          <Card
+                            className={`!p-0 overflow-hidden cursor-pointer transition-all duration-300 ${
+                              selectedAsset === asset.symbol
+                                ? "ring-2 ring-blue-500/50 bg-blue-500/5"
+                                : "hover:bg-zinc-800/50"
+                            }`}
+                            onClick={() =>
+                              setSelectedAsset(
+                                selectedAsset === asset.symbol
+                                  ? null
+                                  : asset.symbol
+                              )
+                            }
+                          >
+                            <div className="flex items-center justify-between p-6">
+                              <div className="flex items-center gap-4">
+                                <motion.img
+                                  src={asset.iconUrl}
+                                  alt={asset.name}
+                                  className="w-12 h-12 rounded-full"
+                                  whileHover={{ scale: 1.1 }}
+                                />
+                                <div>
+                                  <p className="font-semibold text-white text-lg">
+                                    {asset.name}
+                                  </p>
+                                  <p className="text-zinc-400 text-sm">
+                                    {isBalanceVisible
+                                      ? `${asset.balance} ${asset.symbol}`
+                                      : "••••••"}
+                                  </p>
+                                </div>
+                              </div>
+
+                              <div className="hidden md:block text-right">
+                                <p className="font-semibold text-white text-lg">
+                                  {isBalanceVisible
+                                    ? `$${asset.currentValue}`
+                                    : "••••••"}
+                                </p>
+                                <p
+                                  className={`text-sm flex items-center gap-1 justify-end ${
+                                    asset["24hChange"].startsWith("+")
+                                      ? "text-green-400"
+                                      : "text-red-400"
+                                  }`}
+                                >
+                                  {asset["24hChange"].startsWith("+") ? (
+                                    <ArrowUpRight size={14} />
+                                  ) : (
+                                    <ArrowDownRight size={14} />
+                                  )}
+                                  {asset["24hChange"]}
                                 </p>
                               </div>
-                            </div>
-                            
-                            <div className="hidden md:block text-right">
-                              <p className="font-semibold text-white text-lg">
-                                {isBalanceVisible ? `$${asset.currentValue}` : '••••••'}
-                              </p>
-                              <p className={`text-sm flex items-center gap-1 justify-end ${
-                                asset["24hChange"].startsWith("+") ? "text-green-400" : "text-red-400"
-                              }`}>
-                                {asset["24hChange"].startsWith("+") ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
-                                {asset["24hChange"]}
-                              </p>
-                            </div>
-                            
-                            <div className="hidden lg:block text-right">
-                              <p className={`font-semibold text-lg ${
-                                asset.pnl.startsWith("+") ? "text-green-400" : "text-red-400"
-                              }`}>
-                                {isBalanceVisible ? asset.pnl : '••••••'}
-                              </p>
-                              <p className="text-zinc-400 text-sm">{asset.pnlPercent}</p>
-                            </div>
-                            
-                            <div className="flex items-center gap-2">
-                              <motion.div
-                                whileHover={{ scale: 1.1 }}
-                                whileTap={{ scale: 0.9 }}
-                              >
-                                <Button
-                                  className="!px-3 !py-2 border-zinc-600 text-zinc-300 hover:bg-zinc-700 hover:text-white hover:border-zinc-500"
-                                  aria-label={`Edit settings for ${asset.name}`}
+
+                              <div className="hidden lg:block text-right">
+                                <p
+                                  className={`font-semibold text-lg ${
+                                    asset.pnl.startsWith("+")
+                                      ? "text-green-400"
+                                      : "text-red-400"
+                                  }`}
                                 >
-                                  <Settings size={16} />
-                                </Button>
-                              </motion.div>
-                            </div>
-                          </div>
-                          
-                          {(asset.takeProfit || asset.stopLoss) && (
-                            <motion.div 
-                              className="bg-zinc-900/50 px-6 py-4 border-t border-zinc-700/50"
-                              initial={{ height: 0, opacity: 0 }}
-                              animate={{ height: "auto", opacity: 1 }}
-                              transition={{ duration: 0.3 }}
-                            >
-                              <div className="flex flex-wrap gap-x-8 gap-y-3">
-                                {asset.takeProfit && (
-                                  <div className="flex items-center gap-2 text-sm">
-                                    <TrendingUp size={16} className="text-green-400" />
-                                    <span className="text-zinc-400">Take Profit:</span>
-                                    <span className="font-mono text-green-400 font-medium">
-                                      ${asset.takeProfit}
-                                    </span>
-                                  </div>
-                                )}
-                                {asset.stopLoss && (
-                                  <div className="flex items-center gap-2 text-sm">
-                                    <TrendingDown size={16} className="text-red-400" />
-                                    <span className="text-zinc-400">Stop Loss:</span>
-                                    <span className="font-mono text-red-400 font-medium">
-                                      ${asset.stopLoss}
-                                    </span>
-                                  </div>
-                                )}
+                                  {isBalanceVisible ? asset.pnl : "••••••"}
+                                </p>
+                                <p className="text-zinc-400 text-sm">
+                                  {asset.pnlPercent}
+                                </p>
                               </div>
-                            </motion.div>
-                          )}
-                        </Card>
+
+                              <div className="flex items-center gap-2">
+                                <motion.div
+                                  whileHover={{ scale: 1.1 }}
+                                  whileTap={{ scale: 0.9 }}
+                                >
+                                  <Button
+                                    className="!px-3 !py-2 border-zinc-600 text-zinc-300 hover:bg-zinc-700 hover:text-white hover:border-zinc-500"
+                                    aria-label={`Edit settings for ${asset.name}`}
+                                  >
+                                    <Settings size={16} />
+                                  </Button>
+                                </motion.div>
+                              </div>
+                            </div>
+
+                            {(asset.takeProfit || asset.stopLoss) && (
+                              <motion.div
+                                className="bg-zinc-900/50 px-6 py-4 border-t border-zinc-700/50"
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: "auto", opacity: 1 }}
+                                transition={{ duration: 0.3 }}
+                              >
+                                <div className="flex flex-wrap gap-x-8 gap-y-3">
+                                  {asset.takeProfit && (
+                                    <div className="flex items-center gap-2 text-sm">
+                                      <TrendingUp
+                                        size={16}
+                                        className="text-green-400"
+                                      />
+                                      <span className="text-zinc-400">
+                                        Take Profit:
+                                      </span>
+                                      <span className="font-mono text-green-400 font-medium">
+                                        ${asset.takeProfit}
+                                      </span>
+                                    </div>
+                                  )}
+                                  {asset.stopLoss && (
+                                    <div className="flex items-center gap-2 text-sm">
+                                      <TrendingDown
+                                        size={16}
+                                        className="text-red-400"
+                                      />
+                                      <span className="text-zinc-400">
+                                        Stop Loss:
+                                      </span>
+                                      <span className="font-mono text-red-400 font-medium">
+                                        ${asset.stopLoss}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                              </motion.div>
+                            )}
+                          </Card>
+                        </motion.div>
+                      ))
+                    ) : (
+                      <motion.div
+                        className="text-center text-zinc-400 py-8"
+                        variants={itemVariants}
+                      >
+                        No assets found in your portfolio.
                       </motion.div>
-                    ))}
+                    )}
                   </motion.div>
                 </motion.div>
               </motion.div>
             )}
 
             {activeTab === "orders" && (
-              <motion.div 
-                key="orders-content" 
+              <motion.div
+                key="orders-content"
                 initial="hidden"
                 animate="visible"
                 variants={containerVariants}
@@ -460,7 +609,9 @@ export default function PortfolioPage() {
                     <Activity size={28} className="text-blue-400" />
                     <h2
                       className="text-2xl font-semibold text-white"
-                      style={{ fontFamily: "'Creati Display Bold', sans-serif" }}
+                      style={{
+                        fontFamily: "'Creati Display Bold', sans-serif",
+                      }}
                     >
                       Open Orders
                     </h2>
@@ -469,37 +620,40 @@ export default function PortfolioPage() {
                     <table className="w-full text-left">
                       <thead>
                         <tr className="border-b border-zinc-700">
-                          <th className="p-3 text-zinc-400 font-medium">Coin</th>
-                          <th className="p-3 text-zinc-400 font-medium">Action</th>
-                          <th className="p-3 text-zinc-400 font-medium">Amount</th>
-                          <th className="p-3 text-zinc-400 font-medium">Price</th>
-                          <th className="p-3 text-zinc-400 font-medium">Status</th>
+                          <th className="p-3 text-zinc-400 font-medium">
+                            Coin
+                          </th>
+                          <th className="p-3 text-zinc-400 font-medium">
+                            Action
+                          </th>
+                          <th className="p-3 text-zinc-400 font-medium">
+                            Amount
+                          </th>
+                          <th className="p-3 text-zinc-400 font-medium">
+                            Price
+                          </th>
+                          <th className="p-3 text-zinc-400 font-medium">
+                            Status
+                          </th>
                         </tr>
                       </thead>
                       <tbody>
-                        {openOrders.map((order, index) => (
-                          <motion.tr
-                            key={order.symbol}
-                            className="border-b border-zinc-800 hover:bg-zinc-800/30 transition-colors"
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: index * 0.1 }}
-                          >
-                            <td className="p-3 font-medium">{order.symbol}</td>
-                            <td className={`p-3 font-medium ${
-                              order.action === "BUY" ? "text-green-400" : "text-red-400"
-                            }`}>
-                              {order.action}
-                            </td>
-                            <td className="p-3">{order.amount}</td>
-                            <td className="p-3 font-mono">${order.price}</td>
-                            <td className="p-3">
-                              <span className="px-2 py-1 bg-yellow-500/20 text-yellow-400 text-xs rounded-full">
-                                {order.status}
-                              </span>
-                            </td>
-                          </motion.tr>
-                        ))}
+                        <motion.tr
+                          className="border-b border-zinc-800 hover:bg-zinc-800/30 transition-colors"
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: 0.1 }}
+                        >
+                          <td className="p-3 font-medium">N/A</td>
+                          <td className="p-3 font-medium text-zinc-400">N/A</td>
+                          <td className="p-3">N/A</td>
+                          <td className="p-3 font-mono">N/A</td>
+                          <td className="p-3">
+                            <span className="px-2 py-1 bg-yellow-500/20 text-yellow-400 text-xs rounded-full">
+                              N/A
+                            </span>
+                          </td>
+                        </motion.tr>
                       </tbody>
                     </table>
                   </div>
@@ -508,8 +662,8 @@ export default function PortfolioPage() {
             )}
 
             {activeTab === "history" && (
-              <motion.div 
-                key="history-content" 
+              <motion.div
+                key="history-content"
                 initial="hidden"
                 animate="visible"
                 variants={containerVariants}
@@ -520,7 +674,9 @@ export default function PortfolioPage() {
                       <BarChart3 size={28} className="text-blue-400" />
                       <h2
                         className="text-2xl font-semibold text-white"
-                        style={{ fontFamily: "'Creati Display Bold', sans-serif" }}
+                        style={{
+                          fontFamily: "'Creati Display Bold', sans-serif",
+                        }}
                       >
                         Trade History
                       </h2>
@@ -544,35 +700,65 @@ export default function PortfolioPage() {
                     <table className="w-full text-left">
                       <thead>
                         <tr className="border-b border-zinc-700">
-                          <th className="p-3 text-zinc-400 font-medium">Coin</th>
-                          <th className="p-3 text-zinc-400 font-medium">Action</th>
-                          <th className="p-3 text-zinc-400 font-medium">Amount</th>
-                          <th className="p-3 text-zinc-400 font-medium">Price</th>
-                          <th className="p-3 text-zinc-400 font-medium">Date</th>
+                          <th className="p-3 text-zinc-400 font-medium">
+                            Coin
+                          </th>
+                          <th className="p-3 text-zinc-400 font-medium">
+                            Action
+                          </th>
+                          <th className="p-3 text-zinc-400 font-medium">
+                            Amount
+                          </th>
+                          <th className="p-3 text-zinc-400 font-medium">
+                            Price
+                          </th>
+                          <th className="p-3 text-zinc-400 font-medium">
+                            Date
+                          </th>
                         </tr>
                       </thead>
                       <tbody>
                         <AnimatePresence>
-                          {filteredHistory.map((trade, index) => (
+                          {filteredHistory.length > 0 ? (
+                            filteredHistory.map((trade, index) => (
+                              <motion.tr
+                                key={`${trade.symbol}-${index}`}
+                                className="border-b border-zinc-800 hover:bg-zinc-800/30 transition-colors"
+                                initial={{ opacity: 0, x: -20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: 20 }}
+                                transition={{ delay: index * 0.05 }}
+                              >
+                                <td className="p-3 font-medium">
+                                  {trade.symbol}
+                                </td>
+                                <td
+                                  className={`p-3 font-medium ${
+                                    trade.action === "BUY"
+                                      ? "text-green-400"
+                                      : "text-red-400"
+                                  }`}
+                                >
+                                  {trade.action}
+                                </td>
+                                <td className="p-3">{trade.amount}</td>
+                                <td className="p-3 font-mono">${trade.price}</td>
+                                <td className="p-3 text-zinc-400">
+                                  {trade.date}
+                                </td>
+                              </motion.tr>
+                            ))
+                          ) : (
                             <motion.tr
-                              key={`${trade.symbol}-${index}`}
-                              className="border-b border-zinc-800 hover:bg-zinc-800/30 transition-colors"
-                              initial={{ opacity: 0, x: -20 }}
-                              animate={{ opacity: 1, x: 0 }}
-                              exit={{ opacity: 0, x: 20 }}
-                              transition={{ delay: index * 0.05 }}
+                              className="border-b border-zinc-800"
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
                             >
-                              <td className="p-3 font-medium">{trade.symbol}</td>
-                              <td className={`p-3 font-medium ${
-                                trade.action === "BUY" ? "text-green-400" : "text-red-400"
-                              }`}>
-                                {trade.action}
+                              <td colSpan={5} className="p-3 text-center text-zinc-400">
+                                No trade history found.
                               </td>
-                              <td className="p-3">{trade.amount}</td>
-                              <td className="p-3 font-mono">${trade.price}</td>
-                              <td className="p-3 text-zinc-400">{trade.date}</td>
                             </motion.tr>
-                          ))}
+                          )}
                         </AnimatePresence>
                       </tbody>
                     </table>
