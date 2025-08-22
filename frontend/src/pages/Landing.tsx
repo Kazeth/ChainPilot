@@ -27,29 +27,29 @@ import { useNavigate } from "react-router-dom"; // Import useNavigate
 // Data for team members - in a real app, this might come from an API
 const teamMembers = [
   {
-    name: "Alex Johnson",
-    role: "Lead Architect",
-    imageUrl: "https://placehold.co/400x400/18181b/FFFFFF?text=Alex",
+    name: "Roony Soon",
+    role: "Backend Engineer",
+    imageUrl: "https://placehold.co/400x400/18181b/FFFFFF?text=Roony",
   },
   {
-    name: "Maria Garcia",
-    role: "AI Specialist",
-    imageUrl: "https://placehold.co/400x400/18181b/FFFFFF?text=Maria",
+    name: "Visella",
+    role: "AI Engineer",
+    imageUrl: "https://placehold.co/400x400/18181b/FFFFFF?text=Visella",
   },
   {
-    name: "James Smith",
+    name: "Martin Erickson",
     role: "Frontend Developer",
-    imageUrl: "https://placehold.co/400x400/18181b/FFFFFF?text=James",
+    imageUrl: "https://placehold.co/400x400/18181b/FFFFFF?text=Martin",
   },
   {
-    name: "Priya Patel",
-    role: "Security Expert",
-    imageUrl: "https://placehold.co/400x400/18181b/FFFFFF?text=Priya",
+    name: "Darren Oliver Putra Haryanto",
+    role: "Frontend Developer",
+    imageUrl: "https://placehold.co/400x400/18181b/FFFFFF?text=Darren",
   },
   {
-    name: "Chen Wei",
-    role: "UI/UX Designer",
-    imageUrl: "https://placehold.co/400x400/18181b/FFFFFF?text=Chen",
+    name: "Andrew Gregory Winata",
+    role: "AI Engineer",
+    imageUrl: "https://placehold.co/400x400/18181b/FFFFFF?text=Andrew",
   },
 ];
 

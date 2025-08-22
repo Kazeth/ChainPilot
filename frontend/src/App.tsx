@@ -11,6 +11,7 @@ import Wallet from "./pages/Wallet";
 import TradingPage from "./pages/Trading";
 import { useAuthContext } from "./context/AuthContext";
 import NotFound from "./pages/NotFound";
+import PrivateLayout from "./components/PrivateRoute";
 
 function App() {
   const auth = useAuthContext();
@@ -25,13 +26,15 @@ function App() {
       <Routes>
         <Route element={<MainLayout />}>
           <Route path="/" element={<Landing />} />
-          <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/analytics" element={<AnalyticsPage />} />
-          <Route path="/portfolio" element={<Portofolio />} />
-          <Route path="/wallet" element={<Wallet />} />
-          <Route path="/trading" element={<TradingPage />} />
+          <Route element={<PrivateLayout />}>
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/analytics" element={<AnalyticsPage />} />
+            <Route path="/portfolio" element={<Portofolio />} />
+            <Route path="/wallet" element={<Wallet />} />
+            <Route path="/trading" element={<TradingPage />} />
+          </Route>
         </Route>
         <Route path="/*" element={<NotFound />} />
       </Routes>
