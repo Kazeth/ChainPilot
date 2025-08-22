@@ -13,7 +13,7 @@ from uagents_core.contrib.protocols.chat import (
     EndSessionContent,
     chat_protocol_spec,
 )
-
+import re
 
 class LegacyCheckResponse(BaseModel):
     """Response model for legacy check operations"""
@@ -155,7 +155,6 @@ def get_last_tx_timestamp(icp_address: str) -> int:
     except Exception as e:
         print(f"❌ [ICP API ERROR] Unexpected error: {e}")
         return 0
-
 
 def check_user_inactivity(email: str, icp_address: str, threshold: int) -> LegacyCheckResponse:
     
