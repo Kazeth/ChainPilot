@@ -39,7 +39,8 @@ user_agent = Agent(
     name="user_agent",
     port=8008,  # Changed from 8007 to avoid conflict
     seed="user_agent_seed_phrase",
-    mailbox=True  # Enable mailbox for chat functionality
+    endpoint=["http://localhost:8008/submit"],
+    mailbox=True
 )
 
 # Fund the agent if balance is low

@@ -16,6 +16,7 @@ import { wallet_backend } from "@/declarations/wallet_backend";
 import { marketData_backend } from "@/declarations/marketdata_backend";
 import { user_backend } from "@/declarations/user_backend";
 import { Principal } from "@dfinity/principal";
+import LegacyButton from "@/components/LegacyButton";
 
 interface Asset {
   assetId: string;
@@ -157,11 +158,11 @@ export default function WalletPage() {
   return (
     <>
       <div
-        className="container mx-auto py-8 px-4"
+        className="container px-4 py-8 mx-auto"
         style={{ fontFamily: "'Creati Display', sans-serif" }}
       >
         <h1
-          className="text-4xl font-bold text-white mb-8"
+          className="mb-8 text-4xl font-bold text-white"
           style={{ fontFamily: "'Creati Display Bold', sans-serif" }}
         >
           My Wallet
@@ -169,19 +170,19 @@ export default function WalletPage() {
 
         {/* Total Balance Card */}
         <Card className="!p-6 mb-8">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
+          <div className="flex flex-col items-start justify-between md:flex-row md:items-center">
             <div>
-              <p className="text-zinc-400 text-sm">Total Balance</p>
-              <p className="text-4xl font-bold text-white mt-1">
+              <p className="text-sm text-zinc-400">Total Balance</p>
+              <p className="mt-1 text-4xl font-bold text-white">
                 $
                 {totalBalance.toLocaleString("en-US", {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2,
                 })}
               </p>
-              <p className="text-green-400 text-sm mt-1">+2.5% vs last 24h</p>
+              <p className="mt-1 text-sm text-green-400">+2.5% vs last 24h</p>
             </div>
-            <div className="flex space-x-3 mt-4 md:mt-0">
+            <div className="flex mt-4 space-x-3 md:mt-0">
               <Button
                 className="border-white text-white bg-transparent hover:bg-[#87efff] hover:text-zinc-900 hover:border-[#87efff]"
                 aria-label="Deposit funds"
@@ -201,7 +202,7 @@ export default function WalletPage() {
         </Card>
 
         {/* Assets List */}
-        <div className="space-y-4 mb-12">
+        <div className="mb-12 space-y-4">
           <h2
             className="text-2xl font-semibold text-white"
             style={{ fontFamily: "'Creati Display Bold', sans-serif" }}
@@ -221,23 +222,23 @@ export default function WalletPage() {
                     className="w-10 h-10 rounded-full"
                   />
                   <div>
-                    <p className="font-semibold text-white text-lg">
+                    <p className="text-lg font-semibold text-white">
                       {asset.name}
                     </p>
-                    <p className="text-zinc-400 text-sm">{asset.symbol}</p>
+                    <p className="text-sm text-zinc-400">{asset.symbol}</p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="font-semibold text-white text-lg">
+                  <p className="text-lg font-semibold text-white">
                     {asset.balance} {asset.symbol}
                   </p>
-                  <p className="text-zinc-400 text-sm">{asset.value}</p>
+                  <p className="text-sm text-zinc-400">{asset.value}</p>
                 </div>
               </Card>
             ))
           ) : (
-            <div className="text-center py-8">
-              <p className="text-zinc-400 mb-4">
+            <div className="py-8 text-center">
+              <p className="mb-4 text-zinc-400">
                 No assets found. Please connect your wallet or add holdings.
               </p>
             </div>
@@ -246,7 +247,7 @@ export default function WalletPage() {
 
         {/* Secure Inheritance Section */}
         <Card className="bg-zinc-800 border-2 border-dashed border-zinc-700 !p-6">
-          <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
+          <div className="flex flex-col items-start gap-6 md:flex-row md:items-center">
             <div className="text-[#87efff]">
               <ShieldCheck size={40} />
             </div>
@@ -257,7 +258,7 @@ export default function WalletPage() {
               >
                 Secure Inheritance Protocol
               </h3>
-              <p className="text-zinc-400 mt-1">
+              <p className="mt-1 text-zinc-400">
                 {isProtocolSetup
                   ? "Your protocol is active. You can manage your settings at any time."
                   : "Protect your digital legacy. Designate a beneficiary to receive your assets in case of unforeseen circumstances."}
@@ -296,7 +297,7 @@ export default function WalletPage() {
           <div>
             <label
               htmlFor="walletAddress"
-              className="block text-sm font-medium text-zinc-400 mb-1"
+              className="block mb-1 text-sm font-medium text-zinc-400"
             >
               Beneficiary Wallet Address
             </label>
@@ -310,7 +311,7 @@ export default function WalletPage() {
           <div>
             <label
               htmlFor="inactivityPeriod"
-              className="block text-sm font-medium text-zinc-400 mb-1"
+              className="block mb-1 text-sm font-medium text-zinc-400"
             >
               Inactivity Period
             </label>
@@ -326,7 +327,7 @@ export default function WalletPage() {
             </select>
           </div>
         </div>
-        <div className="mt-6 flex justify-end gap-2">
+        <div className="flex justify-end gap-2 mt-6">
           <Button
             onClick={() => setIsModalOpen(false)}
             className="border-zinc-600 text-zinc-300 hover:bg-zinc-700 hover:text-white hover:border-zinc-500"
@@ -345,11 +346,11 @@ export default function WalletPage() {
       </Modal>
 
       {status && (
-        <div className="fixed bottom-4 right-4 bg-purple-900/30 text-purple-200 p-2 rounded">
+        <div className="fixed p-2 text-purple-200 rounded bottom-4 right-4 bg-purple-900/30">
           {status}
         </div>
       )}
-    <LegacyBuztton />
+    <LegacyButton />
     </>
   );
 }
