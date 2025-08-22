@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
-import Logo from "@/assets/ChainPilot_logo.png";
+import Logo from "../assets/ChainPilot_logo.png";
 import Button from "./ui/button"; // Assuming src/components/ui/Button.tsx exists
-import { useAuthContext } from "@/context/AuthContext";
+import { useAuthContext } from "../context/AuthContext";
 import { Link } from "react-router";
 
 export default function Header() {
@@ -86,7 +86,14 @@ export default function Header() {
                     className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
                     aria-label="Go to Analytics"
                   >
-                    Analytics
+                    AI Analytics
+                  </Link>
+                  <Link
+                    to="/trading"
+                    className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
+                    aria-label="Go to Analytics"
+                  >
+                    Trading
                   </Link>
                   <Link
                     to="/portfolio"

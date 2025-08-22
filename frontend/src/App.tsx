@@ -8,6 +8,7 @@ import LoadingPage from "./pages/Loading";
 import AnalyticsPage from "./pages/AnalyticsAI";
 import Portofolio from "./pages/Portofolio";
 import Wallet from "./pages/Wallet";
+import TradingPage from "./pages/Trading";
 import { useAuthContext } from "./context/AuthContext";
 import NotFound from "./pages/NotFound";
 
@@ -30,6 +31,7 @@ function App() {
           <Route path="/analytics" element={<AnalyticsPage />} />
           <Route path="/portfolio" element={<Portofolio />} />
           <Route path="/wallet" element={<Wallet />} />
+          <Route path="/trading" element={<TradingPage />} />
         </Route>
         <Route path="/*" element={<NotFound />} />
       </Routes>
