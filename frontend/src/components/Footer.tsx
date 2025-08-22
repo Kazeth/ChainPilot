@@ -1,5 +1,10 @@
+"use client"
+
+// src/components/Footer.tsx
+import React from "react"
+
 // Import gambar dari assets folder
-import logo from "../assets/ChainPilot_logo.png"
+import logo from "@/assets/ChainPilot_logo.png"
 
 // SVG Icons for social media links.
 const InstagramIcon = () => (
@@ -68,12 +73,39 @@ const MarqueeContent = () => (
   </>
 )
 
+const ParallaxMarquee = () => {
+  const [scrollY, setScrollY] = React.useState(0)
+
+  React.useEffect(() => {
+    const handleScroll = () => setScrollY(window.scrollY)
+    window.addEventListener("scroll", handleScroll)
+    return () => window.removeEventListener("scroll", handleScroll)
+  }, [])
+
+  return (
+    <div className="absolute w-full h-12 flex items-center justify-center overflow-hidden mb-8">
+      <div
+        className="absolute flex whitespace-nowrap"
+        style={{
+          fontFamily: "'Sprintura', serif",
+          transform: `translateX(${-scrollY * 0.5}px)`,
+          transition: "transform 0.1s ease-out",
+        }}
+      >
+        <MarqueeContent />
+        <MarqueeContent />
+        <MarqueeContent />
+      </div>
+    </div>
+  )
+}
+
+
 export default function Footer() {
   return (
-    <footer className="bg-zinc-900 border-t border-zinc-800 pt-12 pb-8 overflow-x-hidden">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 flex flex-col items-center">
+    <footer className="bg-zinc-900 border-t border-zinc-800 pt-12 pb-8 w-screen max-w-full overflow-hidden">
+      <div className="flex flex-col items-center">
         {/* 1. Logo */}
-        {/* Contoh penggunaan gambar yang diimpor */}
         <img
           src={logo || "/placeholder.svg"}
           alt="ChainPilot Logo"
@@ -96,18 +128,12 @@ export default function Footer() {
             <LinkedinIcon />
           </a>
         </div>
-      </div>
 
-      {/* 3. Endless Looping Marquee - Full Width */}
-      <div className="relative w-screen h-12 flex items-center justify-center overflow-hidden mb-8 -mx-4 sm:-mx-6 lg:-mx-8">
-        <div className="absolute flex animate-marquee whitespace-nowrap" style={{ fontFamily: "'Sprintura', serif" }}>
-          {/* The content is duplicated to create a seamless loop */}
-          <MarqueeContent />
-          <MarqueeContent />
+        {/* 3. Placeholder to maintain space for the absolute marquee */}
+        <div className="relative w-full h-12 mb-8">
+          <ParallaxMarquee />
         </div>
-      </div>
 
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 flex flex-col items-center">
         {/* 4. Separator */}
         <hr className="w-full max-w-lg border-zinc-800 mb-6" />
 

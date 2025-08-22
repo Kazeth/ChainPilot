@@ -21,7 +21,7 @@ const MainLayout = () => {
 
       {/* Newsletter and Footer - only show on non-analytics pages */}
       {!isAnalyticsPage && (
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-16">
+        <div className="py-16">
           <NewsletterCTA />
           <Footer />  
         </div>

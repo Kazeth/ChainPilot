@@ -71,7 +71,7 @@ export default function NewsletterCTA() {
 
   return (
     // Main container with gradient background and rounded corners
-    <div className="relative bg-gradient-to-br from-[#87efff] to-[#55c8e2] rounded-2xl overflow-hidden p-8 md:p-12 shadow-2xl">
+    <div className="relative bg-gradient-to-br from-[#87efff] to-[#55c8e2] rounded-2xl overflow-hidden p-8 md:p-12 shadow-2xl container mx-auto sm:px-6 lg:px-8">
       <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
         {/* Left Side: Text and Form */}
         <div className="text-zinc-900" style={{ fontFamily: "'Creati Display', sans-serif" }}>
