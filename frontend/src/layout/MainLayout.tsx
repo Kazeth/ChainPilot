@@ -10,12 +10,12 @@ const MainLayout = () => {
   const isAnalyticsPage = location.pathname === '/analytics';
   
   return (
-    <div className={`bg-zinc-900 text-white ${isAnalyticsPage ? 'h-screen' : 'min-h-screen'} w-screen flex flex-col overflow-hidden`}>
+    <div className={`bg-zinc-900 text-white ${isAnalyticsPage ? 'h-screen' : 'min-h-screen'} w-screen flex flex-col`}>
       {/* The isLoggedIn prop has been removed from the Header */}
       <Header />
 
       {/* The main content of the page will be rendered here */}
-      <main className={`flex-grow ${isAnalyticsPage ? 'overflow-hidden pt-20' : 'overflow-auto pt-20'}`}>
+      <main className={`flex-grow ${isAnalyticsPage ? 'overflow-hidden pt-20' : 'overflow-hidden pt-20'}`}>
         <Outlet />
       </main>
 
