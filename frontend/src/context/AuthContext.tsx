@@ -2,13 +2,13 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useAuth } from '@ic-reactor/react';
 import { Actor, HttpAgent } from '@dfinity/agent';
-// import { Principal } from '@dfinity/principal';
+import { Principal } from '@dfinity/principal';
 
 const identityProvider = 'https://identity.ic0.app';
 
 type AuthContextType = {
   isAuthenticated: boolean;
-//   principal: Principal;
+  principal: Principal;
   login: () => void;
   logout: () => void;
   loginLoading: boolean;
@@ -19,7 +19,7 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType>({
   isAuthenticated: false,
-//   principal: Principal.anonymous(),
+  principal: Principal.anonymous(),
   login: async () => {},
   logout: async () => {},
   loginError: '',
@@ -32,7 +32,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const { authenticated, login, logout, loginLoading, identity, loginError } =
     useAuth();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-//   const [principal, setPrincipal] = useState<Principal>();
+  const [principal, setPrincipal] = useState<Principal>();
   const [actor, setActor] = useState<Actor | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
 
@@ -54,17 +54,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       console.log(identity?.getPrincipal().toText(), 'identity principal');
       if (authenticated) {
-        // if (!identity) {
-        //   console.error('Identity is null, cannot create HttpAgent.');
-        //   return;
-        // }
-        // const agent = new HttpAgent({ identity });
+        if (!identity) {
+          console.error('Identity is null, cannot create HttpAgent.');
+          return;
+        }
+        const agent = await HttpAgent.create({ identity });
 
-        // if (process.env.NODE_ENV !== 'production') {
-        //   await agent.fetchRootKey();
-        // }
-        // setIsAuthenticated(true);
-        // setPrincipal(identity.getPrincipal());
+        if (process.env.NODE_ENV !== 'production') {
+          await agent.fetchRootKey();
+        }
+        setIsAuthenticated(true);
+        setPrincipal(identity.getPrincipal());
       } else {
         console.log('AuthClient not logged in');
       }
@@ -90,7 +90,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     <AuthContext.Provider
       value={{
         isAuthenticated,
-        // principal: identity ? identity.getPrincipal() : Principal.anonymous(),
+        principal: identity ? principal ?? identity.getPrincipal() : Principal.anonymous(),
         login: handleLogin,
         logout: handleLogout,
         loginLoading,

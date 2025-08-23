@@ -17,6 +17,7 @@ import { marketData_backend } from "@/declarations/marketdata_backend";
 import { user_backend } from "@/declarations/user_backend";
 import { Principal } from "@dfinity/principal";
 import LegacyButton from "@/components/LegacyButton";
+import { useAuthContext } from "@/context/AuthContext";
 
 interface Asset {
   assetId: string;
@@ -58,29 +59,34 @@ export default function WalletPage() {
   const [assets, setAssets] = useState<ProcessedAsset[]>([]);
   const [status, setStatus] = useState("");
 
+  const auth = useAuthContext();
+
   useEffect(() => {
     async function initialize() {
       try {
         // Mock Principal for testing (replace with real authentication)
-        const mockPrincipalStr =
-          "b77a5-d2g6j-l4g7b-a5b7g-6g6a5-d2g6j-l4g7b-a5b7g-cai";
-        const mockPrincipal = Principal.fromText(mockPrincipalStr);
-
+        // const mockPrincipalStr =
+        //   "b77a5-d2g6j-l4g7b-a5b7g-6g6a5-d2g6j-l4g7b-a5b7g-cai";
+        // const mockPrincipal = Principal.fromText(mockPrincipalStr);
+        
         try {
-          const userDataRaw = await user_backend.getUserData(mockPrincipal);
+          console.log("[v0] Fetching user data for principal:", auth.principal.toText());
+          const userDataRaw = await user_backend.getUserData(auth.principal);
+          console.log("[v0] User data raw:", userDataRaw);
           const userData =
             Array.isArray(userDataRaw) && userDataRaw.length > 0
               ? userDataRaw[0]
               : null;
           console.log("[v0] User data retrieved:", userData);
-        } catch {
-          console.log("[v0] User data not found, continuing without username");
+        } catch (error){
+          console.log("[v0] User data not found, continuing without username: ", error);
         }
-
+        console.log(auth.principal.toText(), "using principal");
         const wallets = (await wallet_backend.getWalletsByPrincipal(
-          mockPrincipal
-        )) as Array<[Principal, Wallet[]]>;
-        const walletData = wallets.length > 0 ? wallets[0][1][0] : null;
+          auth.principal
+        )) as Wallet[];
+        console.log("[v0] Wallets retrieved:", wallets);
+        const walletData = wallets.length > 0 ? wallets[0] : null;
         if (walletData) {
           const holdings = (await wallet_backend.getHoldingsByWalletId(
             walletData.walletId
