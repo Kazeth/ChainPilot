@@ -96,6 +96,7 @@ module {
 
   public type Wallet = {
     walletId : Text;
+    walletAddress : Text;
     owner : Principal;
     blockchainNetwork : Text; // contoh: Ethereum, ICP, Solana
     balance : Float;
@@ -131,7 +132,7 @@ module {
   public type Trade = {
     tradeId : Text;
     user : Principal;
-    assetSymbol : Text;
+    asset : Asset;
     orderType : OrderType;
     amount : Float;
     price : Float;
@@ -153,7 +154,7 @@ module {
   };
 
   // Signal / Alert
-  // SignalType = { #BUY; #SELL; #HOLD };
+  // SignalType = AutoTrade[BUY/SELL/TP/SL] / Signal[BUY/SELL/HOLD];
 
   public type Signal = {
     signalId : Text;
@@ -193,5 +194,16 @@ module {
     timestamp : Time.Time;
     details : Text;
   };
+
+  // Insurance
+  public type Insurance = {
+    user : Principal;
+    walletAddress : Text;
+    backUpWalletAddress : Text;
+    email : Text;
+    dateStart : Time.Time; 
+    interval : Time.Time;
+    warnCount : Nat;
+  }
 
 };

@@ -27,8 +27,9 @@
     "marketData_backend": {
       "main": "backend/backend/MarketData.mo",
       "type": "motoko",
+      "node_compatibility" : "true",
       "declarations": {
-        "output": "frontend/src/declarations/marketdata_backend"
+        "output": "frontend/src/declarations/marketData_backend"
       }
     },
     "transaction_backend": {
@@ -44,6 +45,16 @@
       "declarations": {
         "output": "frontend/src/declarations/signal_backend"
       }
+    },
+    "insurance_backend": {
+      "main": "backend/backend/Insurance.mo",
+      "type": "motoko",
+      "declarations": {
+        "output": "frontend/src/declarations/insurance_backend"
+      },
+      "dependencies": [
+        "wallet_backend"
+      ]
     },
     "auditLog_backend": {
       "main": "backend/backend/AuditLog.mo",

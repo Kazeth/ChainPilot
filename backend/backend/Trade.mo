@@ -11,16 +11,22 @@ import Types "../Types";
 persistent actor {
 
   var tradeIdCounter : Nat = 0;
+  var autoTradeIdCounter : Nat = 0;
 
   var stableTrades : [(Principal, [Types.Trade])] = [];
   private transient var trades = TrieMap.TrieMap<Principal, [Types.Trade]>(Principal.equal, Principal.hash);
 
+  var stableAutoTrades : [(Principal, [Types.AutoTrade])] = [];
+  private transient var autoTrades = TrieMap.TrieMap<Principal, [Types.AutoTrade]>(Principal.equal, Principal.hash);
+
   system func preupgrade() {
     stableTrades := Iter.toArray(trades.entries());
+    stableAutoTrades := Iter.toArray(autoTrades.entries());
   };
 
   system func postupgrade() {
     trades := TrieMap.fromEntries<Principal, [Types.Trade]>(Iter.fromArray(stableTrades), Principal.equal, Principal.hash);
+    autoTrades := TrieMap.fromEntries<Principal, [Types.AutoTrade]>(Iter.fromArray(stableAutoTrades), Principal.equal, Principal.hash);
   };
 
   public query func getTradesByPrincipal(principal : Principal) : async [Types.Trade] {
@@ -34,9 +40,47 @@ persistent actor {
     Iter.toArray(trades.entries());
   };
 
+  public func createAutoTrade(
+    user : Principal,
+    asset : Types.Asset,
+    amount : Float,
+    tradeActions : [Types.TradeAction],
+  ) : async Types.AutoTrade {
+    autoTradeIdCounter += 1;
+
+    let paddedNum = if (autoTradeIdCounter < 10) {
+      "00" # Nat.toText(autoTradeIdCounter);
+    } else if (autoTradeIdCounter < 100) {
+      "0" # Nat.toText(autoTradeIdCounter);
+    } else {
+      Nat.toText(autoTradeIdCounter);
+    };
+
+    let autoTradeId : Text = "A_TRD-" # paddedNum;
+
+    let newAutoTrade : Types.AutoTrade = {
+      autoTradeId = autoTradeId;
+      user = user;
+      asset = asset;
+      assetAmount = amount;
+      tradeActions = tradeActions;
+    };
+
+    let existingAutoTrades = switch (autoTrades.get(user)) {
+      case (?arr) { arr };
+      case (null) { [] };
+    };
+
+    let updatedAutoTrades = Array.append(existingAutoTrades, [newAutoTrade]);
+
+    autoTrades.put(user, updatedAutoTrades);
+
+    return newAutoTrade;
+  };
+
   public func createTrade(
     user : Principal,
-    assetSymbol : Text,
+    asset : Types.Asset,
     orderType : Types.OrderType,
     amount : Float,
     price : Float,
@@ -58,7 +102,7 @@ persistent actor {
     let newTrade : Types.Trade = {
       tradeId = tradeId;
       user = user;
-      assetSymbol = assetSymbol;
+      asset = asset;
       orderType = orderType;
       amount = amount;
       price = price;

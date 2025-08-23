@@ -1,5 +1,4 @@
 import Text "mo:base/Text";
-import Nat "mo:base/Nat";
 import Float "mo:base/Float";
 import TrieMap "mo:base/TrieMap";
 import Iter "mo:base/Iter";
@@ -8,8 +7,6 @@ import Array "mo:base/Array";
 import Types "../Types";
 
 persistent actor {
-
-  var assetIdCounter : Nat = 0;
 
   var stableAssets : [(Text, Types.Asset)] = [];
   private transient var assets = TrieMap.TrieMap<Text, Types.Asset>(Text.equal, Text.hash);
@@ -38,7 +35,7 @@ persistent actor {
     return assets.get(assetId);
   };
 
-    public query func getAllAssets() : async [(Text, Types.Asset)] {
+  public query func getAllAssets() : async [(Text, Types.Asset)] {
     return Iter.toArray(assets.entries());
   };
 
@@ -73,7 +70,8 @@ persistent actor {
     return newCandle;
   };
 
-  public func addAsset(
+  public func fetchAsset (
+    assetId : Text,
     symbol : Text,
     name : Text,
     currentPrice : Float,
@@ -81,29 +79,35 @@ persistent actor {
     volume24h : Float,
     network : Text,
   ) : async Types.Asset {
-    assetIdCounter += 1;
-
-    let paddedNum = if (assetIdCounter < 10) {
-      "00" # Nat.toText(assetIdCounter);
-    } else if (assetIdCounter < 100) {
-      "0" # Nat.toText(assetIdCounter);
-    } else {
-      Nat.toText(assetIdCounter);
+    switch (assets.get(assetId)) {
+      case (?a) {
+        let updated : Types.Asset = {
+          assetId = a.assetId;
+          symbol = a.symbol;
+          name = a.name;
+          currentPrice = currentPrice;
+          marketCap = marketCap;
+          volume24h = volume24h;
+          network = a.network;
+        };
+        assets.put(assetId, updated);
+        return updated;
+      };
+      case null {
+        // asset baru → insert
+        let newAsset : Types.Asset = {
+          assetId = assetId;
+          symbol = symbol;
+          name = name;
+          currentPrice = currentPrice;
+          marketCap = marketCap;
+          volume24h = volume24h;
+          network = network;
+        };
+        assets.put(assetId, newAsset);
+        return newAsset;
+      };
     };
-
-    let assetId : Text = "AST-" # paddedNum;
-
-    let newAsset : Types.Asset = {
-      assetId = assetId;
-      symbol = symbol;
-      name = name;
-      currentPrice = currentPrice;
-      marketCap = marketCap;
-      volume24h = volume24h;
-      network = network;
-    };
-    assets.put(assetId, newAsset);
-
-    return newAsset;
   };
+
 };

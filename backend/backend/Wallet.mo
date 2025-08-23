@@ -12,6 +12,7 @@ import MarketDataBackend "canister:marketData_backend";
 persistent actor {
 
   var walletIdCounter : Nat = 0;
+  var demoWalletIdCounter : Nat = 0;
 
   var stableWallets : [(Principal, [Types.Wallet])] = [];
   private transient var wallets = TrieMap.TrieMap<Principal, [Types.Wallet]>(Principal.equal, Principal.hash);
@@ -29,6 +30,10 @@ persistent actor {
     holdings := TrieMap.fromEntries<Text, [Types.Holding]>(Iter.fromArray(stableHoldings), Text.equal, Text.hash);
   };
 
+  public query func getAllWallets() : async [(Principal, [Types.Wallet])] {
+    return Iter.toArray(wallets.entries());
+  };
+
   public query func getHoldingsByWalletId(walletId : Text) : async [(Text, [Types.Holding])] {
     switch (holdings.get(walletId)) {
       case (?holdingArr) { [(walletId, holdingArr)] };
@@ -36,20 +41,61 @@ persistent actor {
     };
   };
 
-  public query func getWalletsByPrincipal(principal : Principal) : async [(Principal, [Types.Wallet])] {
-    let mapped = Iter.map<(Principal, [Types.Wallet]), (Principal, [Types.Wallet])>(
-      wallets.entries(),
-      func((userPrincipal, walletArr)) {
-        let userWallets = Iter.toArray(
-          Iter.filter<Types.Wallet>(
-            walletArr.vals(),
-            func(t) { t.owner == principal },
-          )
+  public query func getWalletsByPrincipal(principal : Principal) : async [Types.Wallet] {
+    switch (wallets.get(principal)) {
+      case (?walletArr) return walletArr;
+      case null return [];
+    };
+  };
+
+  public func updateWallet(wallet : Types.Wallet) : async Bool {
+    switch (wallets.get(wallet.owner)) {
+      case (?arr) {
+        let filtered = Array.filter<Types.Wallet>(
+          arr,
+          func(w : Types.Wallet) : Bool {
+            w.walletId != wallet.walletId;
+          },
         );
-        (userPrincipal, userWallets);
-      },
-    );
-    Iter.toArray(mapped);
+        let updated = Array.append(filtered, [wallet]);
+        wallets.put(wallet.owner, updated);
+        return true;
+      };
+      case null {
+        return false;
+      };
+    };
+  };
+
+  public func clearWallet(walletId : Text) : async Bool {
+    let allWallets = Iter.toArray(wallets.entries());
+
+    label find for ((principal, walletArr) in allWallets.vals()) {
+      var updatedArr : [Types.Wallet] = [];
+
+      for (w in walletArr.vals()) {
+        if (w.walletId == walletId) {
+          let clearedWallet : Types.Wallet = {
+            walletId = w.walletId;
+            walletAddress = w.walletAddress;
+            owner = w.owner;
+            blockchainNetwork = w.blockchainNetwork;
+            balance = 0;
+            connectedExchange = w.connectedExchange;
+          };
+          updatedArr := Array.append(updatedArr, [clearedWallet]);
+        } else {
+          updatedArr := Array.append(updatedArr, [w]);
+        };
+      };
+
+      wallets.put(principal, updatedArr);
+      ignore holdings.remove(walletId);
+
+      return true;
+    };
+
+    return false; // kalau walletId tidak ditemukan
   };
 
   // wallet's holding
@@ -87,8 +133,49 @@ persistent actor {
 
   };
 
+  // demo wallet
+  public func addDemoWallet(
+    walletAddress : Text,
+    owner : Principal,
+    blockchainNetwork : Text,
+    connectedExchange : Text,
+  ) : async Types.Wallet {
+    demoWalletIdCounter += 1;
+
+    let paddedNum = if (demoWalletIdCounter < 10) {
+      "00" # Nat.toText(demoWalletIdCounter);
+    } else if (demoWalletIdCounter < 100) {
+      "0" # Nat.toText(demoWalletIdCounter);
+    } else {
+      Nat.toText(demoWalletIdCounter);
+    };
+
+    let demoWalletId : Text = "D_WLT-" # paddedNum;
+    let balance : Float = 10000;
+
+    let newWallet : Types.Wallet = {
+      walletId = demoWalletId;
+      walletAddress = walletAddress;
+      owner = owner;
+      blockchainNetwork = blockchainNetwork;
+      balance = balance;
+      connectedExchange = connectedExchange;
+    };
+
+    let existingWallets = switch (wallets.get(owner)) {
+      case (?arr) { arr };
+      case (null) { [] };
+    };
+
+    let updatedWallets = Array.append(existingWallets, [newWallet]);
+    wallets.put(owner, updatedWallets);
+
+    return newWallet;
+  };
+
   // custodial wallet
   public func addWallet(
+    walletAddress : Text,
     owner : Principal,
     blockchainNetwork : Text,
     balance : Float,
@@ -108,6 +195,7 @@ persistent actor {
 
     let newWallet : Types.Wallet = {
       walletId = walletId;
+      walletAddress = walletAddress;
       owner = owner;
       blockchainNetwork = blockchainNetwork;
       balance = balance;
