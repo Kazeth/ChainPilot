@@ -18,12 +18,13 @@ import {
 } from "lucide-react";
 import Button from "../components/ui/button";
 import Card from "../components/ui/card";
-import { wallet_backend } from "@/declarations/wallet_backend";
-import { marketData_backend } from "@/declarations/marketData_backend";
-import { transaction_backend } from "@/declarations/transaction_backend";
-import { user_backend } from "@/declarations/user_backend";
+import { useAuthContext } from "../context/AuthContext";
 import { Principal } from "@dfinity/principal";
-import { useAuthContext } from "@/context/AuthContext";
+import { HttpAgent } from "@dfinity/agent";
+import { canisterId as userCanisterId, createActor as createUserBackendActor } from "../declarations/user_backend";
+import { canisterId as walletCanisterId, createActor as createWalletBackendActor } from "../declarations/wallet_backend";
+import { canisterId as marketDataCanisterId, createActor as createMarketDataBackendActor } from "../declarations/marketData_backend";
+import { canisterId as transactionCanisterId, createActor as createTransactionBackendActor } from "../declarations/transaction_backend";
 
 // --- Type Definitions ---
 interface Asset {
@@ -74,14 +75,13 @@ interface TradeHistoryItem {
 
 // --- Main Portfolio Page Component ---
 export default function PortfolioPage() {
+  const { isAuthenticated, principal, authChecked } = useAuthContext();
   const [activeTab, setActiveTab] = useState("coins");
   const [searchTerm, setSearchTerm] = useState("");
   const [isBalanceVisible, setIsBalanceVisible] = useState(true);
   const [selectedAsset, setSelectedAsset] = useState<string | null>(null);
   const [portfolioData, setPortfolioData] = useState<PortfolioAsset[]>([]);
   const [history, setHistory] = useState<TradeHistoryItem[]>([]);
-
-  const auth = useAuthContext();
 
   // Reset selected asset when switching tabs to prevent state issues
   const handleTabChange = (tabName: string) => {
@@ -120,7 +120,7 @@ export default function PortfolioPage() {
   }: {
     tabName: string;
     label: string;
-    icon: React.ComponentType<{ size?: number }>;
+    icon: React.ComponentType<any>;
   }) => (
     <motion.button
       onClick={() => handleTabChange(tabName)}
@@ -146,21 +146,36 @@ export default function PortfolioPage() {
     </motion.button>
   );
 
-  // Fetch data from backend (unchanged)
+  // Fetch data from backend using createActor
   useEffect(() => {
     async function initialize() {
+      if (!isAuthenticated || !authChecked || !principal || principal.isAnonymous()) {
+        console.log("User not authenticated or principal is anonymous");
+        return;
+      }
+
+      // Create a new HttpAgent
+      const agent = new HttpAgent();
+      if (process.env.DFX_NETWORK !== "ic") {
+        await agent.fetchRootKey().catch(console.error);
+      }
+
       try {
+        // Create actors with canister IDs from declaration files
+        const user_backend = createUserBackendActor(userCanisterId, { agent });
+        const wallet_backend = createWalletBackendActor(walletCanisterId, { agent });
+        const marketData_backend = createMarketDataBackendActor(marketDataCanisterId, { agent });
+        const transaction_backend = createTransactionBackendActor(transactionCanisterId, { agent });
+
         try {
-          const userDataResponse = await user_backend.getUserData(auth.principal);
-          const userData = Array.isArray(userDataResponse) && userDataResponse.length > 0
-            ? userDataResponse[0]
-            : null;
+          const userDataResponse = await user_backend.getUserData(principal);
+          const userData = userDataResponse ? userDataResponse : null;
           console.log("[v0] User data retrieved:", userData);
         } catch (error) {
           console.log("[v0] User data not found, continuing without username", error);
         }
 
-        const walletsResponse = await wallet_backend.getWalletsByPrincipal(auth.principal);
+        const walletsResponse = await wallet_backend.getWalletsByPrincipal(principal);
         const wallets = walletsResponse as unknown as Array<[Principal, Wallet[]]>;
         const walletData = wallets.length > 0 ? wallets[0][1][0] : null;
 
@@ -177,7 +192,7 @@ export default function PortfolioPage() {
               try {
                 const assetDataResponse = await marketData_backend.getAssetByAssetId(asset.assetId);
                 assetData = Array.isArray(assetDataResponse) && assetDataResponse.length > 0
-                  ? assetDataResponse[0] as Asset
+                  ? (assetDataResponse[0] as Asset)
                   : null;
               } catch (error) {
                 console.log("[v0] Asset data not found for:", asset.assetId, error);
@@ -194,11 +209,7 @@ export default function PortfolioPage() {
                 : 0;
 
               const change24h = assetData
-                ? (
-                    ((assetData.currentPrice - assetData.currentPrice / 1.025) /
-                      assetData.currentPrice) *
-                    100
-                  ).toFixed(1)
+                ? (((assetData.currentPrice - assetData.currentPrice / 1.025) / assetData.currentPrice) * 100).toFixed(1)
                 : "0.0";
 
               return {
@@ -211,11 +222,8 @@ export default function PortfolioPage() {
                 pnlPercent: pnlPercent.toFixed(2) + "%",
                 "24hChange": change24h + "%",
                 iconUrl: `https://placehold.co/40x40/${
-                  asset.symbol === "BTC"
-                    ? "F7931A"
-                    : asset.symbol === "ETH"
-                      ? "627EEA"
-                      : "9945FF"
+                  asset.symbol === "BTC" ? "F7931A" :
+                  asset.symbol === "ETH" ? "627EEA" : "9945FF"
                 }/FFFFFF?text=${asset.symbol[0]}`,
                 takeProfit: null,
                 stopLoss: null,
@@ -227,9 +235,8 @@ export default function PortfolioPage() {
           setPortfolioData(assetList);
 
           try {
-            const txsResponse = await transaction_backend.getAllUserTransactions(auth.principal);
+            const txsResponse = await transaction_backend.getAllUserTransactions(principal);
             const txs = txsResponse as unknown as Array<[string, Transaction]>;
-            
             const historyData = txs.map(([, tx]) => ({
               symbol: "Unknown",
               action: tx.txType,
@@ -237,7 +244,6 @@ export default function PortfolioPage() {
               price: "0.00",
               date: new Date(Number(tx.timestamp) / 1000000).toLocaleDateString(),
             }));
-            
             setHistory(historyData);
           } catch (error) {
             console.error("Failed to fetch transactions:", error);
@@ -248,20 +254,25 @@ export default function PortfolioPage() {
       }
     }
     initialize();
-  }, [auth.principal]);
+  }, [isAuthenticated, authChecked, principal]);
 
   // Calculate total profit/loss and identify best/worst performers
-  const totalPnL = portfolioData.reduce((sum, asset) => sum + parseFloat(asset.pnl), 0).toFixed(2);
-  const totalPnLPercent = portfolioData.length > 0
-    ? portfolioData.reduce((sum, asset) => {
-        const value = parseFloat(asset.currentValue);
-        const buyValue = parseFloat(asset.avgBuyPrice) * parseFloat(asset.balance);
-        return buyValue > 0 ? sum + (value - buyValue) / buyValue * 100 : sum;
-      }, 0).toFixed(2) + "%"
-    : "0.00%";
+  const totalPnL = portfolioData
+    .reduce((sum, asset) => sum + parseFloat(asset.pnl), 0)
+    .toFixed(2);
+  const totalPnLPercent =
+    portfolioData.length > 0
+      ? portfolioData
+          .reduce((sum, asset) => {
+            const value = parseFloat(asset.currentValue);
+            const buyValue = parseFloat(asset.avgBuyPrice) * parseFloat(asset.balance);
+            return buyValue > 0 ? sum + ((value - buyValue) / buyValue) * 100 : sum;
+          }, 0)
+          .toFixed(2) + "%"
+      : "0.00%";
 
-  const sortedBy24hChange = [...portfolioData].sort((a, b) => 
-    parseFloat(b["24hChange"]) - parseFloat(a["24hChange"])
+  const sortedBy24hChange = [...portfolioData].sort(
+    (a, b) => parseFloat(b["24hChange"]) - parseFloat(a["24hChange"])
   );
   const bestPerformer = sortedBy24hChange[0];
   const worstPerformer = sortedBy24hChange[sortedBy24hChange.length - 1];
@@ -393,7 +404,9 @@ export default function PortfolioPage() {
                           </p>
                           <p className="text-green-400 text-sm mt-1 flex items-center gap-1">
                             <ArrowUpRight size={16} />
-                            {bestPerformer ? bestPerformer["24hChange"] : "0.0%"}
+                            {bestPerformer
+                              ? bestPerformer["24hChange"]
+                              : "0.0%"}
                           </p>
                         </div>
                         <motion.div
@@ -418,7 +431,9 @@ export default function PortfolioPage() {
                           </p>
                           <p className="text-red-400 text-sm mt-1 flex items-center gap-1">
                             <ArrowDownRight size={16} />
-                            {worstPerformer ? worstPerformer["24hChange"] : "0.0%"}
+                            {worstPerformer
+                              ? worstPerformer["24hChange"]
+                              : "0.0%"}
                           </p>
                         </div>
                         <motion.div
@@ -741,7 +756,9 @@ export default function PortfolioPage() {
                                   {trade.action}
                                 </td>
                                 <td className="p-3">{trade.amount}</td>
-                                <td className="p-3 font-mono">${trade.price}</td>
+                                <td className="p-3 font-mono">
+                                  ${trade.price}
+                                </td>
                                 <td className="p-3 text-zinc-400">
                                   {trade.date}
                                 </td>
@@ -753,7 +770,10 @@ export default function PortfolioPage() {
                               initial={{ opacity: 0 }}
                               animate={{ opacity: 1 }}
                             >
-                              <td colSpan={5} className="p-3 text-center text-zinc-400">
+                              <td
+                                colSpan={5}
+                                className="p-3 text-center text-zinc-400"
+                              >
                                 No trade history found.
                               </td>
                             </motion.tr>

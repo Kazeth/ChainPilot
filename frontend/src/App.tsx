@@ -12,6 +12,7 @@ import TradingPage from "./pages/Trading";
 import { useAuthContext } from "./context/AuthContext";
 import NotFound from "./pages/NotFound";
 import PrivateLayout from "./components/PrivateRoute";
+import MarketUpdater from "./components/MarketUpdater";
 
 function App() {
   const auth = useAuthContext();
@@ -23,6 +24,7 @@ function App() {
   return (
     <Router>
       {/* <MainLayout> */}
+      <MarketUpdater />
       <Routes>
         <Route element={<MainLayout />}>
           <Route path="/" element={<Landing />} />
