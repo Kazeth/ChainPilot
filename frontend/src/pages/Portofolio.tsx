@@ -19,10 +19,11 @@ import {
 import Button from "../components/ui/button";
 import Card from "../components/ui/card";
 import { wallet_backend } from "@/declarations/wallet_backend";
-import { marketData_backend } from "@/declarations/marketdata_backend";
+import { marketData_backend } from "@/declarations/marketData_backend";
 import { transaction_backend } from "@/declarations/transaction_backend";
 import { user_backend } from "@/declarations/user_backend";
 import { Principal } from "@dfinity/principal";
+import { useAuthContext } from "@/context/AuthContext";
 
 // --- Type Definitions ---
 interface Asset {
@@ -80,6 +81,8 @@ export default function PortfolioPage() {
   const [portfolioData, setPortfolioData] = useState<PortfolioAsset[]>([]);
   const [history, setHistory] = useState<TradeHistoryItem[]>([]);
 
+  const auth = useAuthContext();
+
   // Reset selected asset when switching tabs to prevent state issues
   const handleTabChange = (tabName: string) => {
     setActiveTab(tabName);
@@ -117,7 +120,7 @@ export default function PortfolioPage() {
   }: {
     tabName: string;
     label: string;
-    icon: React.ComponentType<any>;
+    icon: React.ComponentType<{ size?: number }>;
   }) => (
     <motion.button
       onClick={() => handleTabChange(tabName)}
@@ -147,12 +150,8 @@ export default function PortfolioPage() {
   useEffect(() => {
     async function initialize() {
       try {
-        const mockPrincipalStr =
-          "b77a5-d2g6j-l4g7b-a5b7g-6g6a5-d2g6j-l4g7b-a5b7g-cai";
-        const mockPrincipal = Principal.fromText(mockPrincipalStr);
-
         try {
-          const userDataResponse = await user_backend.getUserData(mockPrincipal);
+          const userDataResponse = await user_backend.getUserData(auth.principal);
           const userData = Array.isArray(userDataResponse) && userDataResponse.length > 0
             ? userDataResponse[0]
             : null;
@@ -161,7 +160,7 @@ export default function PortfolioPage() {
           console.log("[v0] User data not found, continuing without username", error);
         }
 
-        const walletsResponse = await wallet_backend.getWalletsByPrincipal(mockPrincipal);
+        const walletsResponse = await wallet_backend.getWalletsByPrincipal(auth.principal);
         const wallets = walletsResponse as unknown as Array<[Principal, Wallet[]]>;
         const walletData = wallets.length > 0 ? wallets[0][1][0] : null;
 
@@ -228,7 +227,7 @@ export default function PortfolioPage() {
           setPortfolioData(assetList);
 
           try {
-            const txsResponse = await transaction_backend.getAllUserTransactions(mockPrincipal);
+            const txsResponse = await transaction_backend.getAllUserTransactions(auth.principal);
             const txs = txsResponse as unknown as Array<[string, Transaction]>;
             
             const historyData = txs.map(([, tx]) => ({
@@ -249,7 +248,7 @@ export default function PortfolioPage() {
       }
     }
     initialize();
-  }, []);
+  }, [auth.principal]);
 
   // Calculate total profit/loss and identify best/worst performers
   const totalPnL = portfolioData.reduce((sum, asset) => sum + parseFloat(asset.pnl), 0).toFixed(2);

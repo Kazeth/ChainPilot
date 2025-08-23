@@ -13,7 +13,7 @@ import Card from "../components/ui/card";
 import Input from "../components/ui/input";
 import Modal from "../components/ui/modal";
 import { wallet_backend } from "@/declarations/wallet_backend";
-import { marketData_backend } from "@/declarations/marketdata_backend";
+import { marketData_backend } from "@/declarations/marketData_backend";
 import { user_backend } from "@/declarations/user_backend";
 import { Principal } from "@dfinity/principal";
 import LegacyButton from "@/components/LegacyButton";
@@ -64,11 +64,6 @@ export default function WalletPage() {
   useEffect(() => {
     async function initialize() {
       try {
-        // Mock Principal for testing (replace with real authentication)
-        // const mockPrincipalStr =
-        //   "b77a5-d2g6j-l4g7b-a5b7g-6g6a5-d2g6j-l4g7b-a5b7g-cai";
-        // const mockPrincipal = Principal.fromText(mockPrincipalStr);
-        
         try {
           console.log("[v0] Fetching user data for principal:", auth.principal.toText());
           const userDataRaw = await user_backend.getUserData(auth.principal);
@@ -157,8 +152,6 @@ export default function WalletPage() {
   const handleSaveSettings = () => {
     setIsProtocolSetup(true);
     setIsModalOpen(false);
-    // TODO: Extend User.mo to save beneficiary and inactivity period
-    // Example: await user_backend.setInheritance(mockPrincipal, beneficiary, inactivity);
   };
 
   return (
