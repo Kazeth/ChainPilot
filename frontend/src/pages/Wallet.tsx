@@ -1,27 +1,20 @@
 "use client"
 
 import type React from "react"
-
+import crypto from "crypto";
 import { useState, useEffect, useCallback } from "react"
-import { ArrowDownLeft, ArrowUpRight, ShieldCheck, PlusCircle, Settings } from "lucide-react"
+import { ArrowDownLeft, ArrowUpRight, ShieldCheck, PlusCircle, Settings, WalletIcon } from "lucide-react"
 import Button from "../components/ui/button"
 import Card from "../components/ui/card"
 import Input from "../components/ui/input"
 import InsuranceModal from "../components/ui/insuranceModal"
 import type { Principal } from "@dfinity/principal"
-import { HttpAgent } from "@dfinity/agent"
 import LegacyButton from "@/components/LegacyButton"
 import { useAuthContext } from "@/context/AuthContext"
-import { canisterId as walletCanisterId, createActor as createWalletActor } from "@/declarations/wallet_backend"
-import {
-  canisterId as marketDataCanisterId,
-  createActor as createMarketDataActor,
-} from "@/declarations/marketData_backend"
-import { canisterId as userCanisterId, createActor as createUserActor } from "@/declarations/user_backend"
-import {
-  canisterId as insuranceCanisterId,
-  createActor as createInsuranceActor,
-} from "@/declarations/insurance_backend"
+import { wallet_backend } from "@/declarations/wallet_backend"
+import { marketData_backend } from "@/declarations/marketData_backend"
+import { user_backend } from "@/declarations/user_backend"
+import { insurance_backend } from "@/declarations/insurance_backend"
 import { motion } from "framer-motion"
 
 interface Asset {
@@ -40,7 +33,7 @@ interface Holding {
   valueUSD?: number
 }
 
-interface Wallet {
+interface WalletData {
   walletId: string
   owner: Principal
   blockchainNetwork: string
@@ -76,12 +69,47 @@ export default function WalletPage() {
   const [beneficiary, setBeneficiary] = useState("")
   const [inactivityPeriod, setInactivityPeriod] = useState("6 Months")
   const [initialDataLoaded, setInitialDataLoaded] = useState(false)
+  const [hasWallet, setHasWallet] = useState<boolean | null>(null)
 
-  const { isAuthenticated, principal, authChecked, actor } = useAuthContext()
+  const { isAuthenticated, principal, authChecked } = useAuthContext()
 
   const handleBeneficiaryChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setBeneficiary(e.target.value)
   }, [])
+
+  const handleCreateWallet = async () => {
+    if (!isAuthenticated || !principal || principal.isAnonymous()) {
+      setStatus("Please log in to create a wallet.")
+      return
+    }
+
+    try {
+      setStatus("Creating wallet...");
+      const address = generateWalletAddress();
+
+      const newWallet = await wallet_backend.addWallet(address, principal, "network1", 0, "exchange1");
+
+      console.log("[v0] Wallet created:", newWallet)
+      setHasWallet(true)
+      setStatus("Wallet created successfully! You can now use all features.")
+
+      setInitialDataLoaded(false)
+    } catch (error) {
+      console.error("Failed to create wallet:", error)
+      setStatus("Failed to create wallet: " + (error as Error).message)
+    }
+  }
+
+  function generateWalletAddress() {
+    // 20 byte = 160 bit
+    const array = new Uint8Array(20);
+    window.crypto.getRandomValues(array); // generate random bytes
+    // ubah ke hex string
+    const address = "0x" + Array.from(array)
+      .map(b => b.toString(16).padStart(2, "0"))
+      .join("");
+    return address;
+  }
 
   useEffect(() => {
     if (initialDataLoaded) return
@@ -93,16 +121,6 @@ export default function WalletPage() {
         return
       }
 
-      const agent = new HttpAgent()
-      if (process.env.DFX_NETWORK !== "ic") {
-        await agent.fetchRootKey().catch(console.error)
-      }
-
-      const user_backend = createUserActor(userCanisterId, { agent })
-      const wallet_backend = createWalletActor(walletCanisterId, { agent })
-      const marketData_backend = createMarketDataActor(marketDataCanisterId, { agent })
-      const insurance_backend = createInsuranceActor(insuranceCanisterId, { agent })
-
       try {
         console.log("[v0] Fetching user data for principal:", principal.toText())
         const userDataRaw = await user_backend.getUserData(principal)
@@ -110,11 +128,24 @@ export default function WalletPage() {
         const userData = userDataRaw ? userDataRaw : null
         console.log("[v0] User data retrieved:", userData)
 
+        console.log("[v0] Fetching wallets for principal:", principal.toText())
+        const wallets = await wallet_backend.getWalletsByPrincipal(principal)
+        console.log("[v0] Wallets retrieved:", wallets)
+        const walletData = wallets.length > 0 ? wallets[0] : null
+
+        if (!walletData) {
+          setHasWallet(false)
+          setInitialDataLoaded(true)
+          return
+        }
+
+        setHasWallet(true)
+
         const insurances = await insurance_backend.getInsurancesByPrincipal(principal)
         console.log("[v0] Insurances retrieved:", insurances)
         if (insurances.length > 0) {
           setBeneficiary(insurances[0].backUpWalletAddress)
-          const interval = Number(insurances[0].interval) / (1000 * 60 * 60 * 24 * 30) // Convert nanoseconds to months
+          const interval = Number(insurances[0].interval) / (1000 * 60 * 60 * 24 * 30)
           setInactivityPeriod(
             interval >= 60 ? "5 Years" : interval >= 24 ? "2 Years" : interval >= 12 ? "1 Year" : "6 Months",
           )
@@ -130,6 +161,7 @@ export default function WalletPage() {
         console.log("[v0] Wallets retrieved:", wallets)
         const walletData = wallets.length > 0 ? wallets[0] : null
         if (walletData) {
+          setTotalBalance(walletData.balance);
           const holdings = await wallet_backend.getHoldingsByWalletId(walletData.walletId)
           const holdingsData = holdings.length > 0 ? holdings[0][1] : []
 
@@ -155,9 +187,8 @@ export default function WalletPage() {
                 style: "currency",
                 currency: "USD",
               }),
-              iconUrl: `https://placehold.co/40x40/${
-                asset.symbol === "BTC" ? "F7931A" : asset.symbol === "ETH" ? "627EEA" : "9945FF"
-              }/FFFFFF?text=${asset.symbol[0]}`,
+              iconUrl: `https://placehold.co/40x40/${asset.symbol === "BTC" ? "F7931A" : asset.symbol === "ETH" ? "627EEA" : "9945FF"
+                }/FFFFFF?text=${asset.symbol[0]}`,
             }
           })
 
@@ -168,7 +199,6 @@ export default function WalletPage() {
             const numericValue = Number.parseFloat(asset.value.replace(/[$,]/g, ""))
             return sum + numericValue
           }, 0)
-          setTotalBalance(total)
         }
       } catch (error) {
         console.error("Initialization failed:", error)
@@ -186,14 +216,6 @@ export default function WalletPage() {
       return
     }
 
-    const agent = new HttpAgent()
-    if (process.env.DFX_NETWORK !== "ic") {
-      await agent.fetchRootKey().catch(console.error)
-    }
-
-    const insurance_backend = createInsuranceActor(insuranceCanisterId, { agent })
-    const wallet_backend = createWalletActor(walletCanisterId, { agent })
-
     try {
       const wallets = await wallet_backend.getWalletsByPrincipal(principal)
       const walletData = wallets.length > 0 ? wallets[0] : null
@@ -209,14 +231,14 @@ export default function WalletPage() {
             ? BigInt(24 * 30 * 24 * 60 * 60 * 1000 * 1000 * 1000)
             : inactivityPeriod === "1 Year"
               ? BigInt(12 * 30 * 24 * 60 * 60 * 1000 * 1000 * 1000)
-              : BigInt(6 * 30 * 24 * 60 * 60 * 1000 * 1000 * 1000) // Convert to nanoseconds
+              : BigInt(6 * 30 * 24 * 60 * 60 * 1000 * 1000 * 1000)
 
       const newInsurance = await insurance_backend.createInsurance(
         principal,
         walletData.walletId,
         beneficiary,
-        "user@example.com", // Placeholder; update with actual user email
-        BigInt(Date.now() * 1000 * 1000), // Current time in nanoseconds
+        "user@example.com",
+        BigInt(Date.now() * 1000 * 1000),
         interval,
       )
 
@@ -240,170 +262,200 @@ export default function WalletPage() {
           >
             My Wallet
           </h1>
-          <div className="flex mt-4 space-x-3 md:mt-0">
-            <motion.button
-              className="border-white text-white bg-transparent border-[#87efff]"
-              aria-label="Demo Wallet"
-              onClick={() => setStatus("Deposit functionality coming soon")}
-              whileTap={{ scale: 0.95 }}
+        </div>
+
+        {hasWallet === false ? (
+          <Card className="!p-8 mb-8 text-center">
+            <div className="text-[#87efff] mb-4">
+              <WalletIcon size={64} className="mx-auto" />
+            </div>
+            <h2
+              className="text-2xl font-bold text-white mb-4"
+              style={{ fontFamily: "'Creati Display Bold', sans-serif" }}
             >
-              Create Demo Wallet
-            </motion.button>
-          </div>
-        </div>
-
-        {/* Total Balance Card */}
-        <Card className="!p-6 mb-8">
-          <div className="flex flex-col items-start justify-between md:flex-row md:items-center">
-            <div>
-              <p className="text-sm text-zinc-400">Total Balance</p>
-              <p className="mt-1 text-4xl font-bold text-white">
-                $
-                {totalBalance.toLocaleString("en-US", {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}
-              </p>
-              <p className="mt-1 text-sm text-green-400">+2.5% vs last 24h</p>
-            </div>
-            <div className="flex mt-4 space-x-3 md:mt-0">
-              <Button
-                className="border-white text-white bg-transparent hover:bg-[#87efff] hover:text-zinc-900 hover:border-[#87efff]"
-                aria-label="Deposit funds"
-                onClick={() => setStatus("Deposit functionality coming soon")}
-              >
-                <ArrowDownLeft size={16} className="mr-2" /> Deposit
-              </Button>
-              <Button
-                className="border-white text-white bg-transparent hover:bg-[#87efff] hover:text-zinc-900 hover:border-[#87efff]"
-                aria-label="Withdraw funds"
-                onClick={() => setStatus("Withdraw functionality coming soon")}
-              >
-                <ArrowUpRight size={16} className="mr-2" /> Withdraw
-              </Button>
-            </div>
-          </div>
-        </Card>
-
-        {/* Assets List */}
-        <div className="mb-12 space-y-4">
-          <h2 className="text-2xl font-semibold text-white" style={{ fontFamily: "'Creati Display Bold', sans-serif" }}>
-            Your Assets
-          </h2>
-          {assets.length > 0 ? (
-            assets.map((asset) => (
-              <Card
-                key={asset.symbol}
-                className="flex items-center justify-between !p-4 hover:border-zinc-600 transition-colors"
-              >
-                <div className="flex items-center gap-4">
-                  <img src={asset.iconUrl || "/placeholder.svg"} alt={asset.name} className="w-10 h-10 rounded-full" />
-                  <div>
-                    <p className="text-lg font-semibold text-white">{asset.name}</p>
-                    <p className="text-sm text-zinc-400">{asset.symbol}</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-lg font-semibold text-white">
-                    {asset.balance} {asset.symbol}
-                  </p>
-                  <p className="text-sm text-zinc-400">{asset.value}</p>
-                </div>
-              </Card>
-            ))
-          ) : (
-            <div className="py-8 text-center">
-              <p className="mb-4 text-zinc-400">No assets found. Please connect your wallet or add holdings.</p>
-            </div>
-          )}
-        </div>
-
-        {/* Secure Inheritance Section */}
-        <Card className="bg-zinc-800 border-2 border-dashed border-zinc-700 !p-6">
-          <div className="flex flex-col items-start gap-6 md:flex-row md:items-center">
-            <div className="text-[#87efff]">
-              <ShieldCheck size={40} />
-            </div>
-            <div className="flex-grow">
-              <h3 className="text-xl font-bold text-white" style={{ fontFamily: "'Creati Display Bold', sans-serif" }}>
-                Secure Inheritance Protocol
-              </h3>
-              <p className="mt-1 text-zinc-400">
-                {isProtocolSetup
-                  ? "Your protocol is active. You can manage your settings at any time."
-                  : "Protect your digital legacy. Designate a beneficiary to receive your assets in case of unforeseen circumstances."}
-              </p>
-            </div>
+              No Wallet Found
+            </h2>
+            <p className="text-zinc-400 mb-6">
+              You need to create a wallet first to access all features including asset management and inheritance
+              protocol.
+            </p>
             <Button
-              onClick={() => setIsModalOpen(true)}
-              className="border-white text-white bg-transparent hover:bg-[#87efff] hover:text-zinc-900 hover:border-[#87efff] w-full md:w-auto"
-              aria-label={isProtocolSetup ? "Manage inheritance settings" : "Set up inheritance protocol"}
+              onClick={handleCreateWallet}
+              className="bg-[#87efff] border-[#87efff] text-white hover:bg-[#6fe2f6] hover:border-[#6fe2f6]"
+              aria-label="Create your first wallet"
             >
-              {isProtocolSetup ? (
-                <>
-                  <Settings size={16} className="mr-2" /> Manage Settings
-                </>
-              ) : (
-                <>
-                  <PlusCircle size={16} className="mr-2" /> Set Up Protocol
-                </>
-              )}
+              <PlusCircle size={16} className="mr-2" />
+              Create Your First Wallet
             </Button>
-          </div>
-        </Card>
+          </Card>
+        ) : (
+          <>
+            <Card className="!p-6 mb-8">
+              <div className="flex flex-col items-start justify-between md:flex-row md:items-center">
+                <div>
+                  <p className="text-sm text-zinc-400">Total Balance</p>
+                  <p className="mt-1 text-4xl font-bold text-white">
+                    $
+                    {totalBalance.toLocaleString("en-US", {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
+                  </p>
+                  <p className="mt-1 text-sm text-green-400">+2.5% vs last 24h</p>
+                </div>
+                <div className="flex mt-4 space-x-3 md:mt-0">
+                  <Button
+                    className="border-white text-white bg-transparent hover:bg-[#87efff] hover:text-zinc-900 hover:border-[#87efff]"
+                    aria-label="Deposit funds"
+                    onClick={() => setStatus("Deposit functionality coming soon")}
+                  >
+                    <ArrowDownLeft size={16} className="mr-2" /> Deposit
+                  </Button>
+                  <Button
+                    className="border-white text-white bg-transparent hover:bg-[#87efff] hover:text-zinc-900 hover:border-[#87efff]"
+                    aria-label="Withdraw funds"
+                    onClick={() => setStatus("Withdraw functionality coming soon")}
+                  >
+                    <ArrowUpRight size={16} className="mr-2" /> Withdraw
+                  </Button>
+                </div>
+              </div>
+            </Card>
+
+            <div className="mb-12 space-y-4">
+              <h2
+                className="text-2xl font-semibold text-white"
+                style={{ fontFamily: "'Creati Display Bold', sans-serif" }}
+              >
+                Your Assets
+              </h2>
+              {assets.length > 0 ? (
+                assets.map((asset) => (
+                  <Card
+                    key={asset.symbol}
+                    className="flex items-center justify-between !p-4 hover:border-zinc-600 transition-colors"
+                  >
+                    <div className="flex items-center gap-4">
+                      <img
+                        src={asset.iconUrl || "/placeholder.svg"}
+                        alt={asset.name}
+                        className="w-10 h-10 rounded-full"
+                      />
+                      <div>
+                        <p className="text-lg font-semibold text-white">{asset.name}</p>
+                        <p className="text-sm text-zinc-400">{asset.symbol}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-lg font-semibold text-white">
+                        {asset.balance} {asset.symbol}
+                      </p>
+                      <p className="text-sm text-zinc-400">{asset.value}</p>
+                    </div>
+                  </Card>
+                ))
+              ) : (
+                <div className="py-8 text-center">
+                  <p className="mb-4 text-zinc-400">No assets found. Please connect your wallet or add holdings.</p>
+                </div>
+              )}
+            </div>
+
+            <Card className="bg-zinc-800 border-2 border-dashed border-zinc-700 !p-6">
+              <div className="flex flex-col items-start gap-6 md:flex-row md:items-center">
+                <div className="text-[#87efff]">
+                  <ShieldCheck size={40} />
+                </div>
+                <div className="flex-grow">
+                  <h3
+                    className="text-xl font-bold text-white"
+                    style={{ fontFamily: "'Creati Display Bold', sans-serif" }}
+                  >
+                    Secure Inheritance Protocol
+                  </h3>
+                  <p className="mt-1 text-zinc-400">
+                    {isProtocolSetup
+                      ? "Your protocol is active. You can manage your settings at any time."
+                      : "Protect your digital legacy. Designate a beneficiary to receive your assets in case of unforeseen circumstances."}
+                  </p>
+                </div>
+                <Button
+                  onClick={() => setIsModalOpen(true)}
+                  className="border-white text-white bg-transparent hover:bg-[#87efff] hover:text-zinc-900 hover:border-[#87efff] w-full md:w-auto"
+                  aria-label={isProtocolSetup ? "Manage inheritance settings" : "Set up inheritance protocol"}
+                >
+                  {isProtocolSetup ? (
+                    <>
+                      <Settings size={16} className="mr-2" /> Manage Settings
+                    </>
+                  ) : (
+                    <>
+                      <PlusCircle size={16} className="mr-2" /> Set Up Protocol
+                    </>
+                  )}
+                </Button>
+              </div>
+            </Card>
+          </>
+        )}
       </div>
 
-      {/* Inheritance Modal */}
-      <InsuranceModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Inheritance Protocol Settings">
-        <div className="space-y-4">
-          <div>
-            <label htmlFor="walletAddress" className="block mb-1 text-sm font-medium text-zinc-400">
-              Beneficiary Wallet Address
-            </label>
-            <Input
-              id="walletAddress"
-              type="text"
-              placeholder="0x..."
-              value={beneficiary}
-              onChange={handleBeneficiaryChange}
-              aria-label="Enter beneficiary wallet address"
-            />
+      {hasWallet && (
+        <InsuranceModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          title="Inheritance Protocol Settings"
+        >
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="walletAddress" className="block mb-1 text-sm font-medium text-zinc-400">
+                Beneficiary Wallet Address
+              </label>
+              <Input
+                id="walletAddress"
+                type="text"
+                placeholder="0x..."
+                value={beneficiary}
+                onChange={handleBeneficiaryChange}
+                aria-label="Enter beneficiary wallet address"
+              />
+            </div>
+            <div>
+              <label htmlFor="inactivityPeriod" className="block mb-1 text-sm font-medium text-zinc-400">
+                Inactivity Period
+              </label>
+              <select
+                id="inactivityPeriod"
+                value={inactivityPeriod}
+                onChange={(e) => setInactivityPeriod(e.target.value)}
+                className="w-full bg-zinc-800 border-2 border-zinc-700 text-white rounded-lg py-3 px-4 focus:outline-none focus:border-[#87efff]"
+                aria-label="Select inactivity period"
+              >
+                <option>6 Months</option>
+                <option>1 Year</option>
+                <option>2 Years</option>
+                <option>5 Years</option>
+              </select>
+            </div>
           </div>
-          <div>
-            <label htmlFor="inactivityPeriod" className="block mb-1 text-sm font-medium text-zinc-400">
-              Inactivity Period
-            </label>
-            <select
-              id="inactivityPeriod"
-              value={inactivityPeriod}
-              onChange={(e) => setInactivityPeriod(e.target.value)}
-              className="w-full bg-zinc-800 border-2 border-zinc-700 text-white rounded-lg py-3 px-4 focus:outline-none focus:border-[#87efff]"
-              aria-label="Select inactivity period"
+          <div className="flex justify-end gap-2 mt-6">
+            <Button
+              onClick={() => setIsModalOpen(false)}
+              className="border-zinc-600 text-zinc-300 hover:bg-zinc-700 hover:text-white hover:border-zinc-500"
+              aria-label="Cancel and close modal"
             >
-              <option>6 Months</option>
-              <option>1 Year</option>
-              <option>2 Years</option>
-              <option>5 Years</option>
-            </select>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => handleSaveSettings()}
+              className="bg-[#87efff] border-[#87efff] text-white hover:bg-[#6fe2f6] hover:border-[#6fe2f6]"
+              aria-label="Save inheritance settings"
+            >
+              Save Settings
+            </Button>
           </div>
-        </div>
-        <div className="flex justify-end gap-2 mt-6">
-          <Button
-            onClick={() => setIsModalOpen(false)}
-            className="border-zinc-600 text-zinc-300 hover:bg-zinc-700 hover:text-white hover:border-zinc-500"
-            aria-label="Cancel and close modal"
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={() => handleSaveSettings()}
-            className="bg-[#87efff] border-[#87efff] text-white hover:bg-[#6fe2f6] hover:border-[#6fe2f6]"
-            aria-label="Save inheritance settings"
-          >
-            Save Settings
-          </Button>
-        </div>
-      </InsuranceModal>
+        </InsuranceModal>
+      )}
 
       {status && <div className="fixed p-2 text-purple-200 rounded bottom-4 right-4 bg-purple-900/30">{status}</div>}
       <LegacyButton />

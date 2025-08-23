@@ -59,12 +59,6 @@ export default function InsuranceModal({ isOpen, onClose, title, children }: Mod
     }
 
     document.addEventListener("keydown", handleTab)
-
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown)
-      document.removeEventListener("keydown", handleTab)
-      triggerRef.current?.focus() // restore focus
-    }
   }, [isOpen, onClose])
 
   if (!isOpen) return null

@@ -21,10 +21,10 @@ import Card from "../components/ui/card";
 import { useAuthContext } from "../context/AuthContext";
 import { Principal } from "@dfinity/principal";
 import { HttpAgent } from "@dfinity/agent";
-import { canisterId as userCanisterId, createActor as createUserBackendActor } from "../declarations/user_backend";
-import { canisterId as walletCanisterId, createActor as createWalletBackendActor } from "../declarations/wallet_backend";
-import { canisterId as marketDataCanisterId, createActor as createMarketDataBackendActor } from "../declarations/marketData_backend";
-import { canisterId as transactionCanisterId, createActor as createTransactionBackendActor } from "../declarations/transaction_backend";
+import { user_backend } from "../declarations/user_backend";
+import { wallet_backend } from "../declarations/wallet_backend";
+import { marketData_backend } from "../declarations/marketData_backend";
+import { transaction_backend } from "../declarations/transaction_backend";
 
 // --- Type Definitions ---
 interface Asset {
@@ -120,7 +120,7 @@ export default function PortfolioPage() {
   }: {
     tabName: string;
     label: string;
-    icon: React.ComponentType<any>;
+    icon: React.ComponentType<{ size?: number; className?: string }>;
   }) => (
     <motion.button
       onClick={() => handleTabChange(tabName)}
@@ -161,11 +161,6 @@ export default function PortfolioPage() {
       }
 
       try {
-        // Create actors with canister IDs from declaration files
-        const user_backend = createUserBackendActor(userCanisterId, { agent });
-        const wallet_backend = createWalletBackendActor(walletCanisterId, { agent });
-        const marketData_backend = createMarketDataBackendActor(marketDataCanisterId, { agent });
-        const transaction_backend = createTransactionBackendActor(transactionCanisterId, { agent });
 
         try {
           const userDataResponse = await user_backend.getUserData(principal);
