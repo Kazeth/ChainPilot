@@ -197,6 +197,7 @@ module {
 
   // Insurance
   public type Insurance = {
+    insuranceId : Text;
     user : Principal;
     walletAddress : Text;
     backUpWalletAddress : Text;

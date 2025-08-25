@@ -6,7 +6,7 @@ import Principal "mo:base/Principal";
 import Iter "mo:base/Iter";
 import Array "mo:base/Array";
 import Types "../Types";
-import Error "mo:base/Error";
+import Error "mo:base/Error"; 
 import MarketDataBackend "canister:marketData_backend";
 
 persistent actor {
@@ -30,6 +30,34 @@ persistent actor {
     holdings := TrieMap.fromEntries<Text, [Types.Holding]>(Iter.fromArray(stableHoldings), Text.equal, Text.hash);
   };
 
+  public query func checkNewAddress(walletAddress : Text) : async Bool {
+    let allWallets = Iter.toArray(wallets.entries());
+
+    for ((_, walletArr) in allWallets.vals()) {
+      for (w in walletArr.vals()) {
+        if (w.walletAddress == walletAddress) {
+          return false;
+        };
+      };
+    };
+
+    return true;
+  };
+
+  public query func checkWalletExistence(walletAddress : Text) : async Bool {
+    let allWallets = Iter.toArray(wallets.entries());
+
+    for ((_, walletArr) in allWallets.vals()) {
+      for (w in walletArr.vals()) {
+        if (w.walletAddress == walletAddress) {
+          return true;
+        };
+      };
+    };
+
+    return false;
+  };
+
   public query func getAllWallets() : async [(Principal, [Types.Wallet])] {
     return Iter.toArray(wallets.entries());
   };
@@ -46,6 +74,20 @@ persistent actor {
       case (?walletArr) return walletArr;
       case null return [];
     };
+  };
+
+  public query func getWalletByWalletId(walletId : Text) : async Types.Wallet {
+    let allWallets = Iter.toArray(wallets.entries());
+
+    for ((_, walletArr) in allWallets.vals()) {
+      for (w in walletArr.vals()) {
+        if (w.walletId == walletId) {
+          return w;
+        };
+      };
+    };
+
+    throw Error.reject("Wallet not found: " # walletId);
   };
 
   public func updateWallet(wallet : Types.Wallet) : async Bool {
@@ -67,35 +109,75 @@ persistent actor {
     };
   };
 
+  public func updateWalletBalanceByWalletId(walletId : Text, newBalance : Float) : async Types.Wallet {
+    let allWallets = Iter.toArray(wallets.entries());
+
+    for ((principal, walletArr) in allWallets.vals()) {
+      var found : ?Types.Wallet = null;
+      let updatedArr = Array.map<Types.Wallet, Types.Wallet>(
+        walletArr,
+        func(w : Types.Wallet) : Types.Wallet {
+          if (w.walletId == walletId) {
+            let updatedWallet : Types.Wallet = {
+              walletId = w.walletId;
+              walletAddress = w.walletAddress;
+              owner = w.owner;
+              blockchainNetwork = w.blockchainNetwork;
+              balance = newBalance;
+              connectedExchange = w.connectedExchange;
+            };
+            found := ?updatedWallet;
+            return updatedWallet;
+          } else {
+            return w;
+          };
+        },
+      );
+
+      wallets.put(principal, updatedArr);
+
+      switch (found) {
+        case (?uw) return uw;
+        case null throw Error.reject("Wallet not found: " # walletId);
+      };
+    };
+
+    throw Error.reject("Wallet not found: " # walletId);
+  };
+
   public func clearWallet(walletId : Text) : async Bool {
     let allWallets = Iter.toArray(wallets.entries());
 
-    label find for ((principal, walletArr) in allWallets.vals()) {
-      var updatedArr : [Types.Wallet] = [];
-
-      for (w in walletArr.vals()) {
-        if (w.walletId == walletId) {
-          let clearedWallet : Types.Wallet = {
-            walletId = w.walletId;
-            walletAddress = w.walletAddress;
-            owner = w.owner;
-            blockchainNetwork = w.blockchainNetwork;
-            balance = 0;
-            connectedExchange = w.connectedExchange;
+    for ((principal, walletArr) in allWallets.vals()) {
+      var found : ?Types.Wallet = null;
+      let updatedArr = Array.map<Types.Wallet, Types.Wallet>(
+        walletArr,
+        func(w : Types.Wallet) : Types.Wallet {
+          if (w.walletId == walletId) {
+            let updatedWallet : Types.Wallet = {
+              walletId = w.walletId;
+              walletAddress = w.walletAddress;
+              owner = w.owner;
+              blockchainNetwork = w.blockchainNetwork;
+              balance = 0;
+              connectedExchange = w.connectedExchange;
+            };
+            found := ?updatedWallet;
+            return updatedWallet;
+          } else {
+            return w;
           };
-          updatedArr := Array.append(updatedArr, [clearedWallet]);
-        } else {
-          updatedArr := Array.append(updatedArr, [w]);
-        };
-      };
+        },
+      );
 
       wallets.put(principal, updatedArr);
+
       ignore holdings.remove(walletId);
 
       return true;
     };
 
-    return false; // kalau walletId tidak ditemukan
+    return false;
   };
 
   // wallet's holding

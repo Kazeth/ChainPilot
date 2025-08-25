@@ -3,12 +3,12 @@
 import type React from "react"
 import crypto from "crypto";
 import { useState, useEffect, useCallback } from "react"
-import { 
-  ArrowDownLeft, 
-  ArrowUpRight, 
-  ShieldCheck, 
-  PlusCircle, 
-  Settings, 
+import {
+  ArrowDownLeft,
+  ArrowUpRight,
+  ShieldCheck,
+  PlusCircle,
+  Settings,
   WalletIcon,
   Wallet,
   Eye,
@@ -95,6 +95,7 @@ export default function WalletPage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isProtocolSetup, setIsProtocolSetup] = useState(false)
   const [isBalanceVisible, setIsBalanceVisible] = useState(true)
+  const [isAddressVisible, setIsAddressVisible] = useState(false)
   const [copiedAddress, setCopiedAddress] = useState(false)
   const [totalBalance, setTotalBalance] = useState(0)
   const [assets, setAssets] = useState<ProcessedAsset[]>([])
@@ -183,7 +184,7 @@ export default function WalletPage() {
         }
 
         setHasWallet(true)
-        setWalletAddress(walletData.walletId)
+        setWalletAddress(walletData.walletAddress)
 
         const insurances = await insurance_backend.getInsurancesByPrincipal(principal)
         console.log("[v0] Insurances retrieved:", insurances)
@@ -205,7 +206,9 @@ export default function WalletPage() {
         console.log("[v0] Wallets retrieved:", wallets)
         const walletData = wallets.length > 0 ? wallets[0] : null
         if (walletData) {
+          console.log("walletData balance =", walletData.balance);
           setTotalBalance(walletData.balance);
+          console.log("total balance =", totalBalance);
           const holdings = await wallet_backend.getHoldingsByWalletId(walletData.walletId)
           const holdingsData = holdings.length > 0 ? holdings[0][1] : []
 
@@ -244,12 +247,6 @@ export default function WalletPage() {
 
           const assetList = await Promise.all(assetPromises)
           setAssets(assetList)
-
-          const total = assetList.reduce((sum: number, asset: ProcessedAsset) => {
-            const numericValue = Number.parseFloat(asset.value.replace(/[$,]/g, ""))
-            return sum + numericValue
-          }, 0)
-          setTotalBalance(total)
         }
       } catch (error) {
         console.error("Initialization failed:", error)
@@ -329,31 +326,14 @@ export default function WalletPage() {
             </motion.div>
             My Wallet
           </motion.h1>
-          
-          <motion.div
-            className="flex items-center gap-3"
-            variants={itemVariants}
-          >
-            <motion.button
-              onClick={() => setIsBalanceVisible(!isBalanceVisible)}
-              className="p-2 hover:bg-zinc-800 rounded-lg transition-colors"
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              aria-label={isBalanceVisible ? "Hide balance" : "Show balance"}
-            >
-              {isBalanceVisible ? (
-                <Eye size={20} className="text-zinc-400" />
-              ) : (
-                <EyeOff size={20} className="text-zinc-400" />
-              )}
-            </motion.button>
-          </motion.div>
+
+
         </motion.div>
 
         {hasWallet === false ? (
           <motion.div variants={itemVariants}>
             <Card className="!p-8 mb-8 text-center bg-gradient-to-br from-zinc-800/50 to-zinc-700/50 border-zinc-600/50">
-              <motion.div 
+              <motion.div
                 className="text-[#87efff] mb-4"
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
@@ -370,7 +350,7 @@ export default function WalletPage() {
               >
                 No Wallet Found
               </motion.h2>
-              <motion.p 
+              <motion.p
                 className="text-zinc-400 mb-6"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -405,7 +385,7 @@ export default function WalletPage() {
                 <Card className="!p-4 bg-gradient-to-r from-zinc-800/50 to-zinc-700/50 border-zinc-600/50">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <motion.div 
+                      <motion.div
                         className="p-2 bg-blue-500/20 rounded-lg"
                         whileHover={{ scale: 1.1 }}
                       >
@@ -414,43 +394,62 @@ export default function WalletPage() {
                       <div>
                         <p className="text-zinc-400 text-sm">Wallet Address</p>
                         <p className="text-white font-mono text-sm">
-                          {walletAddress.slice(0, 6)}...{walletAddress.slice(-6)}
+                          {isAddressVisible ? `${walletAddress}` : '••••••••'}
                         </p>
                       </div>
                     </div>
-                    <motion.button
-                      onClick={copyAddress}
-                      className="flex items-center gap-2 px-3 py-2 bg-zinc-700 hover:bg-zinc-600 rounded-lg transition-colors"
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      aria-label="Copy wallet address"
+                    <motion.div
+                      className="flex items-center gap-3"
+                      variants={itemVariants}
                     >
-                      <AnimatePresence mode="wait">
-                        {copiedAddress ? (
-                          <motion.div
-                            key="check"
-                            initial={{ opacity: 0, scale: 0.8 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.8 }}
-                            className="flex items-center gap-2"
-                          >
-                            <CheckCircle size={16} className="text-green-400" />
-                            <span className="text-green-400 text-sm">Copied!</span>
-                          </motion.div>
+                      <motion.button
+                        onClick={() => setIsAddressVisible(!isAddressVisible)}
+                        className="p-2 hover:bg-zinc-800 rounded-lg transition-colors"
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                        aria-label={isBalanceVisible ? "Hide balance" : "Show balance"}
+                      >
+                        {isBalanceVisible ? (
+                          <Eye size={20} className="text-zinc-400" />
                         ) : (
-                          <motion.div
-                            key="copy"
-                            initial={{ opacity: 0, scale: 0.8 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.8 }}
-                            className="flex items-center gap-2"
-                          >
-                            <Copy size={16} className="text-zinc-400" />
-                            <span className="text-zinc-400 text-sm">Copy</span>
-                          </motion.div>
+                          <EyeOff size={20} className="text-zinc-400" />
                         )}
-                      </AnimatePresence>
-                    </motion.button>
+                      </motion.button>
+                      <motion.button
+                        onClick={copyAddress}
+                        className="flex items-center gap-2 px-3 py-2 bg-zinc-700 hover:bg-zinc-600 rounded-lg transition-colors"
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        aria-label="Copy wallet address"
+                      >
+                        <AnimatePresence mode="wait">
+                          {copiedAddress ? (
+                            <motion.div
+                              key="check"
+                              initial={{ opacity: 0, scale: 0.8 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              exit={{ opacity: 0, scale: 0.8 }}
+                              className="flex items-center gap-2"
+                            >
+                              <CheckCircle size={16} className="text-green-400" />
+                              <span className="text-green-400 text-sm">Copied!</span>
+                            </motion.div>
+                          ) : (
+                            <motion.div
+                              key="copy"
+                              initial={{ opacity: 0, scale: 0.8 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              exit={{ opacity: 0, scale: 0.8 }}
+                              className="flex items-center gap-2"
+                            >
+                              <Copy size={16} className="text-zinc-400" />
+                              <span className="text-zinc-400 text-sm">Copy</span>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </motion.button>
+                    </motion.div>
+
                   </div>
                 </Card>
               </motion.div>
@@ -469,21 +468,39 @@ export default function WalletPage() {
                     </motion.div>
                     <div>
                       <p className="text-zinc-400 text-sm mb-1">Your Balance</p>
-                      <motion.p 
+                      <motion.p
                         className={`text-4xl font-bold mt-1 ${isBalanceVisible ? 'text-white' : 'text-zinc-500'}`}
                         key={isBalanceVisible ? 'visible' : 'hidden'}
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.3 }}
                       >
-                        {isBalanceVisible ? `$${totalBalance.toLocaleString()}` : '••••••••'}
+                        {isBalanceVisible ? `$  ${totalBalance.toLocaleString()}` : '$ ••••••••'}
                       </motion.p>
                     </div>
                   </div>
-                  <motion.div 
+                  <motion.div
                     className="flex space-x-3 mt-6 md:mt-0"
                     variants={containerVariants}
                   >
+                    <motion.div
+                      className="flex items-center gap-3"
+                      variants={itemVariants}
+                    >
+                      <motion.button
+                        onClick={() => setIsBalanceVisible(!isBalanceVisible)}
+                        className="p-2 hover:bg-zinc-800 rounded-lg transition-colors"
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                        aria-label={isBalanceVisible ? "Hide balance" : "Show balance"}
+                      >
+                        {isBalanceVisible ? (
+                          <Eye size={20} className="text-zinc-400" />
+                        ) : (
+                          <EyeOff size={20} className="text-zinc-400" />
+                        )}
+                      </motion.button>
+                    </motion.div>
                     <motion.div variants={itemVariants}>
                       <motion.div
                         whileHover={{ scale: 1.05, y: -2 }}
@@ -518,7 +535,7 @@ export default function WalletPage() {
             </motion.div>
 
             {/* Assets List */}
-            <motion.div 
+            <motion.div
               className="space-y-6 mb-12"
               variants={containerVariants}
             >
@@ -535,8 +552,8 @@ export default function WalletPage() {
                 </motion.div>
                 Your Assets
               </motion.h2>
-              
-              <motion.div 
+
+              <motion.div
                 className="grid gap-4"
                 variants={containerVariants}
               >
@@ -571,33 +588,31 @@ export default function WalletPage() {
                               <p className="text-zinc-400 text-sm">{asset.symbol}</p>
                             </div>
                           </div>
-                          
+
                           <div className="hidden md:block text-center">
                             <p className="text-zinc-400 text-sm mb-1">Balance</p>
                             <p className="font-semibold text-white text-lg">
                               {isBalanceVisible ? `${asset.balance} ${asset.symbol}` : '••••••'}
                             </p>
                           </div>
-                          
+
                           <div className="text-right">
                             <p className="font-semibold text-white text-lg">
                               {isBalanceVisible ? asset.value : '••••••'}
                             </p>
                             <div className="flex items-center gap-2 justify-end">
-                              <motion.p 
-                                className={`text-sm font-medium ${
-                                  asset.change24h.startsWith("+") ? "text-green-400" : "text-red-400"
-                                }`}
+                              <motion.p
+                                className={`text-sm font-medium ${asset.change24h.startsWith("+") ? "text-green-400" : "text-red-400"
+                                  }`}
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
                                 transition={{ delay: index * 0.1 + 0.3 }}
                               >
                                 {asset.change24h}
                               </motion.p>
-                              <motion.p 
-                                className={`text-xs ${
-                                  asset.changeAmount.startsWith("+") ? "text-green-400" : "text-red-400"
-                                }`}
+                              <motion.p
+                                className={`text-xs ${asset.changeAmount.startsWith("+") ? "text-green-400" : "text-red-400"
+                                  }`}
                                 initial={{ opacity: 0, x: 10 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 transition={{ delay: index * 0.1 + 0.4 }}
@@ -611,7 +626,7 @@ export default function WalletPage() {
                     </motion.div>
                   ))
                 ) : (
-                  <motion.div 
+                  <motion.div
                     className="py-8 text-center"
                     variants={itemVariants}
                   >
@@ -625,7 +640,7 @@ export default function WalletPage() {
             <motion.div variants={itemVariants}>
               <Card className="bg-gradient-to-br from-zinc-800/50 to-zinc-700/50 border-2 border-dashed border-zinc-600/50 hover:border-zinc-500/50 !p-6 transition-all duration-300">
                 <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
-                  <motion.div 
+                  <motion.div
                     className="text-[#87efff]"
                     whileHover={{ scale: 1.1, rotate: 5 }}
                   >
@@ -639,7 +654,7 @@ export default function WalletPage() {
                     >
                       Secure Inheritance Protocol
                     </motion.h3>
-                    <motion.p 
+                    <motion.p
                       className="text-zinc-400 mt-2"
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -681,8 +696,64 @@ export default function WalletPage() {
         )}
       </motion.div>
 
+      {hasWallet && (
+        <InsuranceModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          title="Inheritance Protocol Settings"
+        >
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="walletAddress" className="block mb-1 text-sm font-medium text-zinc-400">
+                Beneficiary Wallet Address
+              </label>
+              <Input
+                id="walletAddress"
+                type="text"
+                placeholder="0x..."
+                value={beneficiary}
+                onChange={handleBeneficiaryChange}
+                aria-label="Enter beneficiary wallet address"
+              />
+            </div>
+            <div>
+              <label htmlFor="inactivityPeriod" className="block mb-1 text-sm font-medium text-zinc-400">
+                Inactivity Period
+              </label>
+              <select
+                id="inactivityPeriod"
+                value={inactivityPeriod}
+                onChange={(e) => setInactivityPeriod(e.target.value)}
+                className="w-full bg-zinc-800 border-2 border-zinc-700 text-white rounded-lg py-3 px-4 focus:outline-none focus:border-[#87efff]"
+                aria-label="Select inactivity period"
+              >
+                <option>6 Months</option>
+                <option>1 Year</option>
+                <option>2 Years</option>
+                <option>5 Years</option>
+              </select>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 mt-6">
+            <Button
+              onClick={() => setIsModalOpen(false)}
+              className="border-zinc-600 text-zinc-300 hover:bg-zinc-700 hover:text-white hover:border-zinc-500"
+              aria-label="Cancel and close modal"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => handleSaveSettings()}
+              className="bg-[#87efff] border-[#87efff] text-white hover:bg-[#6fe2f6] hover:border-[#6fe2f6]"
+              aria-label="Save inheritance settings"
+            >
+              Save Settings
+            </Button>
+          </div>
+        </InsuranceModal>)}
+
       {status && (
-        <motion.div 
+        <motion.div
           className="fixed p-4 text-white rounded-lg bottom-4 right-4 bg-zinc-900/90 border border-zinc-700"
           initial={{ opacity: 0, x: 100 }}
           animate={{ opacity: 1, x: 0 }}
@@ -691,7 +762,7 @@ export default function WalletPage() {
           {status}
         </motion.div>
       )}
-      
+
       <LegacyButton />
     </>
   )

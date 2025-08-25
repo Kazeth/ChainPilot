@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { MessageSquare, Bot } from "lucide-react"
-import LegacyPopup from "./LegacyPopUp"
+import LegacyPopup from "./LegacyPopup"
 
 export default function LegacyButton() {
   const [isOpen, setIsOpen] = useState(false)

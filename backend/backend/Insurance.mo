@@ -6,9 +6,12 @@ import Principal "mo:base/Principal";
 import Iter "mo:base/Iter";
 import Array "mo:base/Array";
 import Types "../Types";
+import Error "mo:base/Error";
 import WalletBackend "canister:wallet_backend";
 
 persistent actor {
+  var insuranceIdCounter : Nat = 0;
+
   var stableInsurances : [(Principal, [Types.Insurance])] = [];
   private transient var insurances = TrieMap.TrieMap<Principal, [Types.Insurance]>(Principal.equal, Principal.hash);
 
@@ -18,6 +21,20 @@ persistent actor {
 
   system func postupgrade() {
     insurances := TrieMap.fromEntries<Principal, [Types.Insurance]>(Iter.fromArray(stableInsurances), Principal.equal, Principal.hash);
+  };
+
+  public query func getInsuranceByIsuranceId(insuranceId : Text) : async Types.Insurance {
+    let allInsurances = Iter.toArray(insurances.entries());
+
+    for ((_, insuranceArr) in allInsurances.vals()) {
+      for (i in insuranceArr.vals()) {
+        if (i.insuranceId == insuranceId) {
+          return i;
+        };
+      };
+    };
+
+    throw Error.reject("Insurance not valid: " # insuranceId);
   };
 
   public query func getAllInsurances() : async [(Principal, [Types.Insurance])] {
@@ -50,7 +67,8 @@ persistent actor {
     };
   };
 
-  public func triggerInheritance(insurance : Types.Insurance) : async Nat {
+  public func triggerInheritance(insuranceId : Text) : async Nat {
+    let insurance : Types.Insurance = await getInsuranceByIsuranceId(insuranceId);
     let userWallets = await WalletBackend.getWalletsByPrincipal(insurance.user);
 
     var sourceWallet : ?Types.Wallet = null;
@@ -115,11 +133,12 @@ persistent actor {
     return 1; // sukses
   };
 
-  public func insuranceCheck(insurance : Types.Insurance, currentDate : Time.Time) : async Text {
+  public func insuranceCheck(insuranceId : Text, currentDate : Time.Time) : async Text {
+    let insurance : Types.Insurance = await getInsuranceByIsuranceId(insuranceId);
     if (insurance.warnCount >= 4) {
-      let res : Nat = await triggerInheritance(insurance);
+      let res : Nat = await triggerInheritance(insurance.insuranceId);
       if (res == 1) {
-        let res2 : Text = await deleteInsurance(insurance);
+        ignore await deleteInsurance(insurance.insuranceId);
         return "Succeed to inherit wallet";
       } else {
         return "Failed to inherit wallet";
@@ -127,9 +146,9 @@ persistent actor {
     };
 
     let reminderDate = insurance.dateStart + (insurance.interval * (insurance.warnCount + 1));
-    if (reminderDate >= currentDate) {
+    if (currentDate >= reminderDate) {
       // trigger kirim email
-      let res : Types.Insurance = await increaseInsuranceWarnCount(insurance);
+      ignore await increaseInsuranceWarnCount(insurance.insuranceId);
       return "Remind user via email";
     } else {
       return "User's wallet still active";
@@ -137,7 +156,8 @@ persistent actor {
     return "Error occured while checking insurance";
   };
 
-  public func deleteInsurance(insurance : Types.Insurance) : async Text {
+  public func deleteInsurance(insuranceId : Text) : async Text {
+    let insurance : Types.Insurance = await getInsuranceByIsuranceId(insuranceId);
     switch (insurances.get(insurance.user)) {
       case (?arr) {
         let filtered = Array.filter<Types.Insurance>(
@@ -161,28 +181,44 @@ persistent actor {
   };
 
   public func increaseInsuranceWarnCount(
-    insurance : Types.Insurance
+    insuranceId : Text
   ) : async Types.Insurance {
+ 
+    let allInsurances = Iter.toArray(insurances.entries());
 
-    let newInsurance : Types.Insurance = {
-      user = insurance.user;
-      walletAddress = insurance.walletAddress;
-      backUpWalletAddress = insurance.backUpWalletAddress;
-      email = insurance.email;
-      dateStart = insurance.dateStart;
-      interval = insurance.interval;
-      warnCount = insurance.warnCount + 1;
-    };
+    for ((principal, insuranceArr) in allInsurances.vals()) {
+      var found : ?Types.Insurance = null;
+      let updatedArr = Array.map<Types.Insurance, Types.Insurance>(
+        insuranceArr,
+        func(i : Types.Insurance) : Types.Insurance {
+          if (i.insuranceId == insuranceId) {
+            let updatedInsurance : Types.Insurance = {
+              insuranceId = i.insuranceId;
+              user = i.user;
+              walletAddress = i.walletAddress;
+              backUpWalletAddress = i.backUpWalletAddress;
+              email = i.email;
+              dateStart = i.dateStart;
+              interval = i.interval;
+              warnCount = i.warnCount + 1;
+            };
+            found := ?updatedInsurance;
+            return updatedInsurance;
+          } else {
+            return i;
+          };
+        },
+      );
 
-    let existingInsurances = switch (insurances.get(insurance.user)) {
-      case (?arr) { arr };
-      case (null) { [] };
-    };
+      insurances.put(principal, updatedArr);
 
-    let updatedInsurances = Array.append(existingInsurances, [newInsurance]);
-    insurances.put(insurance.user, updatedInsurances);
+      switch (found) {
+        case (?uw) return uw;
+        case null throw Error.reject("Insurance not found: " # insuranceId);
+      };
+    }; 
 
-    return newInsurance;
+    throw Error.reject("Insurance not found: " # insuranceId);
   };
 
   public func createInsurance(
@@ -193,8 +229,20 @@ persistent actor {
     dateStart : Time.Time,
     interval : Time.Time,
   ) : async Types.Insurance {
+    insuranceIdCounter += 1;
+
+    let paddedNum = if (insuranceIdCounter < 10) {
+      "00" # Nat.toText(insuranceIdCounter);
+    } else if (insuranceIdCounter < 100) {
+      "0" # Nat.toText(insuranceIdCounter);
+    } else {
+      Nat.toText(insuranceIdCounter);
+    };
+
+    let insuranceId : Text = "INS-" # paddedNum;
 
     let newInsurance : Types.Insurance = {
+      insuranceId = insuranceId;
       user = userPrincipal;
       walletAddress = walletAddress;
       backUpWalletAddress = backUpWalletAddress;

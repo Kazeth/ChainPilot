@@ -30,8 +30,12 @@ const mockTradeHistory = [
 // --- Interfaces ---
 interface Coin {
   id: string;
-  name: string;
   symbol: string;
+  name: string;
+  current_price: number;
+  marketCap: number;
+  volume24h: number;
+  network: Text;
 }
 
 interface MarketCoin {
@@ -97,10 +101,10 @@ interface BackendAsset {
   assetId: string;
   symbol: string;
   name: string;
-  currentPrice?: number;
-  marketCap?: number;
-  volume24h?: number;
-  network?: string;
+  currentPrice: number;
+  marketCap: number;
+  volume24h: number;
+  network: string;
 }
 
 interface BackendWallet {
@@ -132,10 +136,10 @@ const tradingApiService = {
     try {
       // Create a trading signal with AI-like response
       const confidenceScore = Math.random() * 100; // 0-100
-      const signalType = message.toLowerCase().includes('buy') ? 'BUY_SIGNAL' : 
-                        message.toLowerCase().includes('sell') ? 'SELL_SIGNAL' : 
-                        'ANALYSIS';
-      
+      const signalType = message.toLowerCase().includes('buy') ? 'BUY_SIGNAL' :
+        message.toLowerCase().includes('sell') ? 'SELL_SIGNAL' :
+          'ANALYSIS';
+
       // Generate contextual response based on message content
       let response = "";
       if (message.toLowerCase().includes('bitcoin') || message.toLowerCase().includes('btc')) {
@@ -203,15 +207,15 @@ const TradingAssistantModal: React.FC<TradingAssistantModalProps> = ({
         initial={{ scale: 0.8, y: 50 }}
         animate={{ scale: 1, y: 0 }}
         exit={{ scale: 0.8, y: 50, opacity: 0 }}
-        transition={{ 
-          type: "spring", 
-          damping: 20, 
+        transition={{
+          type: "spring",
+          damping: 20,
           stiffness: 300,
           duration: 0.4
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <motion.div 
+        <motion.div
           className="flex items-center justify-between p-4 border-b border-zinc-700"
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -243,7 +247,7 @@ const TradingAssistantModal: React.FC<TradingAssistantModalProps> = ({
             </svg>
           </motion.button>
         </motion.div>
-        
+
         <div className="h-[calc(85vh-140px)] overflow-y-auto p-6 space-y-5">
           {chatMessages.map((msg, index) => (
             <motion.div
@@ -251,7 +255,7 @@ const TradingAssistantModal: React.FC<TradingAssistantModalProps> = ({
               className={`flex items-end ${msg.sender === "user" ? "justify-end" : "justify-start"}`}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ 
+              transition={{
                 duration: 0.4,
                 delay: 0.1 + (index % 3) * 0.05,
                 type: "spring",
@@ -259,7 +263,7 @@ const TradingAssistantModal: React.FC<TradingAssistantModalProps> = ({
               }}
             >
               {msg.sender === "bot" && (
-                <motion.div 
+                <motion.div
                   className="flex items-center justify-center flex-shrink-0 w-10 h-10 mr-3 rounded-full bg-gradient-to-r from-blue-500 to-cyan-500"
                   whileHover={{ scale: 1.1 }}
                   transition={{ duration: 0.2 }}
@@ -271,13 +275,12 @@ const TradingAssistantModal: React.FC<TradingAssistantModalProps> = ({
                   </svg>
                 </motion.div>
               )}
-              
+
               <motion.div
-                className={`max-w-[75%] rounded-2xl px-5 py-3 shadow-lg ${
-                  msg.sender === "user" 
-                    ? "bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-br-md" 
-                    : "bg-zinc-700 text-zinc-100 rounded-bl-md border border-zinc-600/50"
-                }`}
+                className={`max-w-[75%] rounded-2xl px-5 py-3 shadow-lg ${msg.sender === "user"
+                  ? "bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-br-md"
+                  : "bg-zinc-700 text-zinc-100 rounded-bl-md border border-zinc-600/50"
+                  }`}
                 whileHover={{ scale: 1.01 }}
                 transition={{ duration: 0.2 }}
               >
@@ -285,7 +288,7 @@ const TradingAssistantModal: React.FC<TradingAssistantModalProps> = ({
               </motion.div>
 
               {msg.sender === "user" && (
-                <motion.div 
+                <motion.div
                   className="flex items-center justify-center flex-shrink-0 w-10 h-10 ml-3 rounded-full bg-gradient-to-r from-purple-500 to-pink-500"
                   whileHover={{ scale: 1.1 }}
                   transition={{ duration: 0.2 }}
@@ -299,8 +302,8 @@ const TradingAssistantModal: React.FC<TradingAssistantModalProps> = ({
             </motion.div>
           ))}
         </div>
-        
-        <motion.div 
+
+        <motion.div
           className="absolute bottom-0 left-0 right-0 p-5 border-t border-zinc-700 bg-zinc-800"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -400,6 +403,45 @@ export default function TradingPage() {
   const [isChatLoading, setIsChatLoading] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
 
+  function mapTrade(candidTrade: any): BackendTrade {
+    // Map OrderType
+    const orderType: BackendOrderType =
+      "BUY" in candidTrade.orderType
+        ? { Buy: null }
+        : "SELL" in candidTrade.orderType
+          ? { Sell: null }
+          : {};
+
+    // Map TradeStatus
+    const status: BackendTradeStatus =
+      "Pending" in candidTrade.status
+        ? { Pending: null }
+        : "Executed" in candidTrade.status
+          ? { Completed: null }
+          : "Cancelled" in candidTrade.status
+            ? { Cancelled: null }
+            : {};
+
+    return {
+      tradeId: candidTrade.tradeId,
+      user: candidTrade.user,
+      asset: {
+        assetId: candidTrade.asset.assetId,
+        symbol: candidTrade.asset.symbol,
+        name: candidTrade.asset.name,
+        currentPrice: candidTrade.asset.currentPrice,
+        marketCap: candidTrade.asset.marketCap,
+        volume24h: candidTrade.asset.volume24h,
+        network: candidTrade.asset.network,
+      },
+      orderType,
+      amount: candidTrade.amount,
+      price: candidTrade.price,
+      status,
+      timestamp: candidTrade.timestamp,
+    };
+  }
+
   // Load user data when authenticated
   useEffect(() => {
     const loadUserData = async () => {
@@ -414,7 +456,8 @@ export default function TradingPage() {
         setUserWallets(wallets);
 
         // Load user trades
-        const trades = await trade_backend.getTradesByPrincipal(principal);
+        const tradesRaw = await trade_backend.getTradesByPrincipal(principal);
+        const trades = tradesRaw.map((t: any) => mapTrade(t));
         setUserTrades(trades);
 
         console.log("Loaded user data:", { wallets, trades });
@@ -454,6 +497,10 @@ export default function TradingPage() {
         assetId: selectedCoin,
         symbol: coins.find(c => c.id === selectedCoin)?.symbol.toUpperCase() || "BTC",
         name: coins.find(c => c.id === selectedCoin)?.name || "Bitcoin",
+        currentPrice: coins.find(c => c.id === selectedCoin)?.current_price || 0,
+        marketCap: coins.find(c => c.id === selectedCoin)?.marketCap || 0,
+        volume24h: coins.find(c => c.id === selectedCoin)?.volume24h || 0,
+        network: "CoinGecko"
       };
 
       // Determine order type - Fixed to match interface
@@ -462,14 +509,27 @@ export default function TradingPage() {
       // Use market price or limit price
       const price = orderType === "market" ? 50000 : Number(limitPrice); // You'd get real market price here
 
+      function mapOrderType(orderType: BackendOrderType): any {
+        if ("Buy" in orderType) return { BUY: null };
+        if ("Sell" in orderType) return { SELL: null };
+        return {};
+      }
+
+      function mapStatus(status: BackendTradeStatus): any {
+        if ("Pending" in status) return { Pending: null };
+        if ("Completed" in status) return { Executed: null }; // candid pakai Executed
+        if ("Cancelled" in status) return { Cancelled: null };
+        return {};
+      }
+
       // Create trade
       const newTrade = await trade_backend.createTrade(
         principal,
         asset,
-        orderTypeBackend,
+        mapOrderType(orderTypeBackend),
         Number(tradeAmount),
         price,
-        { Pending: null } as BackendTradeStatus,
+        mapStatus({ Pending: null }),
         BigInt(Date.now() * 1000000) // Convert to nanoseconds
       );
 
@@ -477,7 +537,14 @@ export default function TradingPage() {
       const userWallet = userWallets[0]; // Assuming first wallet
       if (userWallet) {
         const transactionType: BackendTransactionType = tradeType === "buy" ? { Buy: null } : { Sell: null };
-        
+
+        function mapTransactionType(txType: BackendTransactionType | { Transfer?: null }): any {
+          if ("Buy" in txType) return { Buy: null };
+          if ("Sell" in txType) return { Sell: null };
+          if ("Transfer" in txType) return { Transfer: null };
+          return {};
+        }
+
         await transaction_backend.createTransaction(
           principal,
           userWallet.walletAddress,
@@ -485,21 +552,27 @@ export default function TradingPage() {
           Number(tradeAmount),
           { Pending: null }, // Assuming similar status structure
           userWallet.blockchainNetwork,
-          transactionType,
+          mapTransactionType(transactionType),
           BigInt(Date.now() * 1000000)
         );
       }
 
       console.log("Trade created:", newTrade);
-      
+
+      // Load user trades
+      const tradesRaw = await trade_backend.getTradesByPrincipal(principal);
+      const trades = tradesRaw.map((t: any) => mapTrade(t));
+      setUserTrades(trades);
+
       // Refresh user trades
-      const updatedTrades = await trade_backend.getTradesByPrincipal(principal);
+      const updatedRawTrades = await trade_backend.getTradesByPrincipal(principal);
+      const updatedTrades = updatedRawTrades.map((t: any) => mapTrade(t));
       setUserTrades(updatedTrades);
 
       setTradeStatus(`${tradeType.charAt(0).toUpperCase() + tradeType.slice(1)} order placed successfully!`);
       setTradeAmount("");
       setLimitPrice("");
-      
+
     } catch (error) {
       console.error("Trade submission failed:", error);
       setTradeStatus("Failed to place trade: " + (error as Error).message);
@@ -648,7 +721,7 @@ export default function TradingPage() {
     const fetchAndSetTickerData = async () => {
       setIsLoadingTickers(true);
       setTickerError(null);
-      
+
       try {
         const tickers = await fetchTickerData(selectedCoin, selectedExchange);
         setTickerData(tickers);
@@ -659,7 +732,7 @@ export default function TradingPage() {
         setIsLoadingTickers(false);
       }
     };
-    
+
     fetchAndSetTickerData();
     const interval = setInterval(fetchAndSetTickerData, 30000);
     return () => clearInterval(interval);
@@ -668,19 +741,19 @@ export default function TradingPage() {
   const fetchTickerData = async (coinId: string, exchangeId: string): Promise<Ticker[]> => {
     try {
       let url = `https://api.coingecko.com/api/v3/coins/${coinId}/tickers`;
-      
+
       if (exchangeId && exchangeId !== 'all') {
         url += `?exchange_ids=${exchangeId}`;
       }
-      
+
       const response = await fetch(url);
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
+
       const data = await response.json();
-      
+
       const processedTickers = data.tickers
         .filter((ticker: any) => ticker.target === 'USD' || ticker.target === 'USDT' || ticker.target === 'USDC')
         .slice(0, 15)
@@ -695,7 +768,7 @@ export default function TradingPage() {
           last_traded: ticker.last_traded_at,
           trade_url: ticker.trade_url
         }));
-      
+
       return processedTickers;
     } catch (error) {
       console.error('Error fetching ticker data:', error);
@@ -708,7 +781,7 @@ export default function TradingPage() {
       const basePrice = ticker.price;
       const variation = (Math.random() - 0.5) * 0.002;
       const tradePrice = basePrice * (1 + variation);
-      
+
       return {
         price: tradePrice.toLocaleString('en-US', {
           minimumFractionDigits: 2,
@@ -762,7 +835,7 @@ export default function TradingPage() {
     setUserInput("");
     setIsChatLoading(true);
     setChatError(null);
-    
+
     try {
       if (!isAuthenticated || !principal || principal.isAnonymous()) {
         throw new Error("Please log in to use the trading assistant");
@@ -770,27 +843,27 @@ export default function TradingPage() {
 
       // Get response from the trading API service using backend
       const response = await tradingApiService.sendMessage(userInput, principal);
-      
+
       // Format the response in an analytics-friendly way
       const friendlyResponse = wrapAnalyticsResponse(response);
-      
+
       const botResponse: ChatMessage = {
         id: Date.now() + 1,
         text: friendlyResponse,
         sender: "bot",
       };
-      
+
       setChatMessages((prev) => [...prev, botResponse]);
     } catch (err) {
       console.error("Chat error:", err);
       setChatError("There was an error processing your request");
-      
+
       const errorResponse: ChatMessage = {
         id: Date.now() + 1,
         text: "I'm currently experiencing some technical difficulties. Please try again later or try a different query.",
         sender: "bot",
       };
-      
+
       setChatMessages((prev) => [...prev, errorResponse]);
     } finally {
       setIsChatLoading(false);
@@ -844,11 +917,10 @@ export default function TradingPage() {
                     <button
                       key={tf.label}
                       onClick={() => setChartTimeframe(tf.days)}
-                      className={`px-3 py-1 text-xs font-semibold rounded ${
-                        chartTimeframe === tf.days
-                          ? "bg-zinc-600 text-white"
-                          : "text-zinc-400 hover:bg-zinc-700"
-                      }`}
+                      className={`px-3 py-1 text-xs font-semibold rounded ${chartTimeframe === tf.days
+                        ? "bg-zinc-600 text-white"
+                        : "text-zinc-400 hover:bg-zinc-700"
+                        }`}
                     >
                       {tf.label}
                     </button>
@@ -870,21 +942,19 @@ export default function TradingPage() {
               <div className="flex">
                 <button
                   onClick={() => setMarketView("gainers")}
-                  className={`flex-1 p-1 px-3 font-semibold transition-colors duration-200 ${
-                    marketView === "gainers"
-                      ? "text-green-500"
-                      : "text-zinc-400 hover:text-white"
-                  }`}
+                  className={`flex-1 p-1 px-3 font-semibold transition-colors duration-200 ${marketView === "gainers"
+                    ? "text-green-500"
+                    : "text-zinc-400 hover:text-white"
+                    }`}
                 >
                   Top Gainers
                 </button>
                 <button
                   onClick={() => setMarketView("losers")}
-                  className={`flex-1 p-1 px-3 font-semibold transition-colors duration-200 ${
-                    marketView === "losers"
-                      ? "text-red-500"
-                      : "text-zinc-400 hover:text-white"
-                  }`}
+                  className={`flex-1 p-1 px-3 font-semibold transition-colors duration-200 ${marketView === "losers"
+                    ? "text-red-500"
+                    : "text-zinc-400 hover:text-white"
+                    }`}
                 >
                   Top Losers
                 </button>
@@ -894,11 +964,10 @@ export default function TradingPage() {
                   <button
                     key={tf.label}
                     onClick={() => setMarketTimeframe(tf.key)}
-                    className={`px-3 py-1 text-xs font-semibold rounded ${
-                      marketTimeframe === tf.key
-                        ? "bg-zinc-600 text-white"
-                        : "text-zinc-400 hover:bg-zinc-700"
-                    }`}
+                    className={`px-3 py-1 text-xs font-semibold rounded ${marketTimeframe === tf.key
+                      ? "bg-zinc-600 text-white"
+                      : "text-zinc-400 hover:bg-zinc-700"
+                      }`}
                   >
                     {tf.label}
                   </button>
@@ -954,9 +1023,8 @@ export default function TradingPage() {
                             ${coin.current_price.toLocaleString()}
                           </td>
                           <td
-                            className={`px-4 py-2 text-right font-medium ${
-                              change >= 0 ? "text-green-500" : "text-red-500"
-                            }`}
+                            className={`px-4 py-2 text-right font-medium ${change >= 0 ? "text-green-500" : "text-red-500"
+                              }`}
                           >
                             {change.toFixed(2)}%
                           </td>
@@ -977,17 +1045,15 @@ export default function TradingPage() {
             <div className="grid grid-cols-2 gap-2 mb-4">
               <Button
                 onClick={() => setTradeType("buy")}
-                className={`w-full ${
-                  tradeType === "buy" ? "bg-green-500 border-green-500 text-white" : "border-zinc-600 text-zinc-300"
-                }`}
+                className={`w-full ${tradeType === "buy" ? "bg-green-500 border-green-500 text-white" : "border-zinc-600 text-zinc-300"
+                  }`}
               >
                 Buy
               </Button>
               <Button
                 onClick={() => setTradeType("sell")}
-                className={`w-full ${
-                  tradeType === "sell" ? "bg-red-500 border-red-500 text-white" : "border-zinc-600 text-zinc-300"
-                }`}
+                className={`w-full ${tradeType === "sell" ? "bg-red-500 border-red-500 text-white" : "border-zinc-600 text-zinc-300"
+                  }`}
               >
                 Sell
               </Button>
@@ -1023,14 +1089,14 @@ export default function TradingPage() {
                 onChange={(e) => setTradeAmount(e.target.value)}
                 className="w-full p-2 text-white border rounded-md bg-zinc-700 border-zinc-600"
               />
-              
+
               {/* Show wallet balance if user has wallet */}
               {userWallets.length > 0 && (
                 <div className="text-xs text-zinc-400">
                   Available Balance: ${userWallets[0].balance.toLocaleString()}
                 </div>
               )}
-              
+
               {/* Authentication check */}
               {!isAuthenticated ? (
                 <div className="p-2 text-xs text-center text-yellow-400 bg-yellow-400/10 rounded">
@@ -1044,27 +1110,25 @@ export default function TradingPage() {
                 <Button
                   onClick={handleTradeSubmit}
                   disabled={isSubmittingTrade || !tradeAmount}
-                  className={`w-full ${
-                    tradeType === "buy" ? "bg-green-500 border-green-500" : "bg-red-500 border-red-500"
-                  } text-white`}
+                  className={`w-full ${tradeType === "buy" ? "bg-green-500 border-green-500" : "bg-red-500 border-red-500"
+                    } text-white`}
                 >
-                  {isSubmittingTrade 
-                    ? "Submitting..." 
+                  {isSubmittingTrade
+                    ? "Submitting..."
                     : `${tradeType === "buy" ? "Buy" : "Sell"} ${coins.find((c) => c.id === selectedCoin)?.symbol.toUpperCase() || "..."}`
                   }
                 </Button>
               )}
             </div>
-            
+
             {/* Trade status */}
             {tradeStatus && (
-              <div className={`mt-2 p-2 text-xs rounded ${
-                tradeStatus.includes("successfully") 
-                  ? "text-green-400 bg-green-400/10" 
-                  : tradeStatus.includes("Failed") || tradeStatus.includes("error")
+              <div className={`mt-2 p-2 text-xs rounded ${tradeStatus.includes("successfully")
+                ? "text-green-400 bg-green-400/10"
+                : tradeStatus.includes("Failed") || tradeStatus.includes("error")
                   ? "text-red-400 bg-red-400/10"
                   : "text-blue-400 bg-blue-400/10"
-              }`}>
+                }`}>
                 {tradeStatus}
               </div>
             )}
@@ -1106,15 +1170,14 @@ export default function TradingPage() {
                           ${trade.price.toLocaleString()}
                         </td>
                         <td className="p-2 text-right">
-                          <span className={`px-1 py-0.5 rounded text-xs ${
-                            trade.status.Completed !== undefined
-                              ? "text-green-400 bg-green-400/10" 
-                              : trade.status.Pending !== undefined
+                          <span className={`px-1 py-0.5 rounded text-xs ${trade.status.Completed !== undefined
+                            ? "text-green-400 bg-green-400/10"
+                            : trade.status.Pending !== undefined
                               ? "text-yellow-400 bg-yellow-400/10"
                               : "text-red-400 bg-red-400/10"
-                          }`}>
-                            {trade.status.Completed !== undefined ? "Done" : 
-                             trade.status.Pending !== undefined ? "Pending" : "Cancelled"}
+                            }`}>
+                            {trade.status.Completed !== undefined ? "Done" :
+                              trade.status.Pending !== undefined ? "Pending" : "Cancelled"}
                           </span>
                         </td>
                       </tr>
@@ -1192,13 +1255,12 @@ export default function TradingPage() {
                       </td>
                       <td className="p-2 text-right">
                         <span
-                          className={`${
-                            ticker.spread && ticker.spread > 0.1
-                              ? 'text-red-400'
-                              : ticker.spread && ticker.spread > 0.05
+                          className={`${ticker.spread && ticker.spread > 0.1
+                            ? 'text-red-400'
+                            : ticker.spread && ticker.spread > 0.05
                               ? 'text-yellow-400'
                               : 'text-green-400'
-                          }`}
+                            }`}
                         >
                           {ticker.spread?.toFixed(3) || 'N/A'}%
                         </span>
@@ -1323,11 +1385,10 @@ export default function TradingPage() {
                       </div>
                     )}
                     <div
-                      className={`max-w-[80%] rounded-lg px-3 py-2 ${
-                        msg.sender === "user"
-                          ? "bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-br-md"
-                          : "bg-zinc-700 text-zinc-200 rounded-bl-md border border-zinc-600/50"
-                      }`}
+                      className={`max-w-[80%] rounded-lg px-3 py-2 ${msg.sender === "user"
+                        ? "bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-br-md"
+                        : "bg-zinc-700 text-zinc-200 rounded-bl-md border border-zinc-600/50"
+                        }`}
                     >
                       <p className="text-sm whitespace-pre-wrap">{msg.text}</p>
                     </div>
